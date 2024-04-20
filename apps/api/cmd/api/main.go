@@ -12,10 +12,6 @@ import (
 
 const address = ":8080"
 
-type CallRequest struct {
-	Floor int `json:"floor"`
-}
-
 func main() {
 	ctx := context.Background()
 	l := lift.NewLift(ctx, 0, 10, 0, 1)
