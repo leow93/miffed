@@ -2,6 +2,7 @@ package lift
 
 import (
 	"context"
+	"github.com/leow93/miffed-api/internal/pubsub"
 	"slices"
 	"sync"
 	"testing"
@@ -11,12 +12,15 @@ func TestCallLift(t *testing.T) {
 
 	// Not a realistic speed, but makes testing faster
 	const floorsPerSecond = 100
+	const topic = "lift"
 
 	t.Run("calling a lift", func(t *testing.T) {
+		ps := pubsub.NewMemoryPubSub()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		lift := NewLift(ctx, 0, 10, 0, floorsPerSecond)
-		sub := lift.Subscribe()
+		lift := NewLift(ctx, ps, 0, 10, 0, floorsPerSecond)
+		sub, _ := ps.Subscribe(topic)
+
 		lift.Call(5)
 		ev := <-sub
 		liftCalled := LiftCalled{
@@ -28,10 +32,11 @@ func TestCallLift(t *testing.T) {
 	})
 
 	t.Run("notification of lift transits", func(t *testing.T) {
+		ps := pubsub.NewMemoryPubSub()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		lift := NewLift(ctx, 0, 10, 0, floorsPerSecond)
-		sub := lift.Subscribe()
+		lift := NewLift(ctx, ps, 0, 10, 0, floorsPerSecond)
+		sub, _ := ps.Subscribe(topic)
 		lift.Call(2)
 		expectedEvents := []Event{
 			LiftCalled{Floor: 2},
@@ -53,8 +58,9 @@ func TestCallLift(t *testing.T) {
 	t.Run("calling a lift down", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		lift := NewLift(ctx, 0, 10, 10, floorsPerSecond)
-		sub := lift.Subscribe()
+		ps := pubsub.NewMemoryPubSub()
+		lift := NewLift(ctx, ps, 0, 10, 10, floorsPerSecond)
+		sub, _ := ps.Subscribe(topic)
 		lift.Call(5)
 		done := make(chan bool, 1)
 		go func() {
@@ -75,8 +81,9 @@ func TestCallLift(t *testing.T) {
 	t.Run("lift visits all floors called", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		lift := NewLift(ctx, 0, 10, 0, floorsPerSecond)
-		sub := lift.Subscribe()
+		ps := pubsub.NewMemoryPubSub()
+		lift := NewLift(ctx, ps, 0, 10, 0, floorsPerSecond)
+		sub, _ := ps.Subscribe(topic)
 		wg := sync.WaitGroup{}
 		wg.Add(3)
 		visited := make(chan int, 3)
@@ -122,9 +129,10 @@ func TestCallLift(t *testing.T) {
 	t.Run("multiple subscriptions", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		lift := NewLift(ctx, 0, 10, 0, floorsPerSecond)
-		sub1 := lift.Subscribe()
-		sub2 := lift.Subscribe()
+		ps := pubsub.NewMemoryPubSub()
+		lift := NewLift(ctx, ps, 0, 10, 0, floorsPerSecond)
+		sub1, _ := ps.Subscribe(topic)
+		sub2, _ := ps.Subscribe(topic)
 		lift.Call(5)
 		ev1 := <-sub1
 		ev2 := <-sub2

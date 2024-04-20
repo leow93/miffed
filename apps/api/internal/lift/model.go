@@ -2,29 +2,29 @@ package lift
 
 import (
 	"context"
-	"log"
+	"github.com/leow93/miffed-api/internal/pubsub"
 	"time"
 )
 
 type Lift struct {
-	lowestFloor   int
-	highestFloor  int
-	currentFloor  int
-	speed         int    // queue per second
-	requests      *Queue // queue to visit
-	ctx           context.Context
-	subscriptions []chan Event
+	lowestFloor  int
+	highestFloor int
+	currentFloor int
+	speed        int    // queue per second
+	requests     *Queue // queue to visit
+	ctx          context.Context
+	pubsub       pubsub.PubSub
 }
 
-func NewLift(ctx context.Context, lowestFloor, highestFloor, currentFloor, floorsPerSecond int) *Lift {
+func NewLift(ctx context.Context, ps pubsub.PubSub, lowestFloor, highestFloor, currentFloor, floorsPerSecond int) *Lift {
 	lift := &Lift{
-		lowestFloor:   lowestFloor,
-		highestFloor:  highestFloor,
-		currentFloor:  currentFloor,
-		speed:         floorsPerSecond,
-		requests:      NewQueue(),
-		ctx:           ctx,
-		subscriptions: make([]chan Event, 0),
+		lowestFloor:  lowestFloor,
+		highestFloor: highestFloor,
+		currentFloor: currentFloor,
+		speed:        floorsPerSecond,
+		requests:     NewQueue(),
+		ctx:          ctx,
+		pubsub:       ps,
 	}
 	lift.Start()
 	return lift
@@ -54,24 +54,7 @@ func (l *Lift) transitionToFloor(floor int) {
 	for l.currentFloor != floor {
 		l.transit(delta)
 	}
-	l.arrive()
-}
-
-// FIXME: this is not the responsibility of the lift
-func (l *Lift) notify(event Event) {
-	logger := log.Default()
-	switch event.(type) {
-	case LiftArrived:
-		logger.Println("Lift arrived at floor", event.(LiftArrived).Floor)
-	case LiftCalled:
-		logger.Println("Lift called to floor", event.(LiftCalled).Floor)
-	case LiftTransited:
-		logger.Println("Lift transited from floor", event.(LiftTransited).From, "to floor", event.(LiftTransited).To)
-	}
-
-	for _, sub := range l.subscriptions {
-		sub <- event
-	}
+	l.pubsub.Publish("lift", LiftArrived{Floor: l.currentFloor})
 }
 
 func (l *Lift) transit(delta int) {
@@ -80,11 +63,7 @@ func (l *Lift) transit(delta int) {
 	sleepTime := time.Second / time.Duration(l.speed)
 	time.Sleep(sleepTime)
 	l.currentFloor = l.currentFloor + delta
-	l.notify(LiftTransited{From: curr, To: l.currentFloor})
-}
-
-func (l *Lift) arrive() {
-	l.notify(LiftArrived{Floor: l.currentFloor})
+	l.pubsub.Publish("lift", LiftTransited{From: curr, To: l.currentFloor})
 }
 
 // Start
@@ -106,17 +85,11 @@ func (l *Lift) CurrentFloor() int {
 	return l.currentFloor
 }
 
-func (l *Lift) Subscribe() chan Event {
-	sub := make(chan Event)
-	l.subscriptions = append(l.subscriptions, sub)
-	return sub
-}
-
 func (l *Lift) Call(floor int) {
 	go func() {
 		enqueued := l.enqueue(floor)
 		if enqueued {
-			l.notify(LiftCalled{Floor: floor})
+			l.pubsub.Publish("lift", LiftCalled{Floor: floor})
 		}
 	}()
 }
