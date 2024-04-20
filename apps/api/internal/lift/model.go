@@ -33,6 +33,7 @@ func (l *Lift) enqueue(floor int) bool {
 	return l.requests.Enqueue(floor)
 }
 
+// TODO: processor should probably be a separate thing
 func (l *Lift) processFloorRequest() {
 	if l.requests.Length() == 0 {
 		return
