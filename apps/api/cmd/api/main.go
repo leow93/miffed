@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/pubsub"
 	"log"
 	"math/rand"
 	"net/http"
@@ -14,7 +15,8 @@ const address = ":8080"
 
 func main() {
 	ctx := context.Background()
-	l := lift.NewLift(ctx, 0, 10, 0, 1)
+	ps := pubsub.NewMemoryPubSub()
+	l := lift.NewLift(ctx, ps, 0, 10, 0, 1)
 
 	http.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
 		floor := l.CurrentFloor()
