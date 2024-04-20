@@ -2,6 +2,7 @@ package lift
 
 import (
 	"context"
+	"log"
 	"time"
 )
 
@@ -58,6 +59,16 @@ func (l *Lift) transitionToFloor(floor int) {
 
 // FIXME: this is not the responsibility of the lift
 func (l *Lift) notify(event Event) {
+	logger := log.Default()
+	switch event.(type) {
+	case LiftArrived:
+		logger.Println("Lift arrived at floor", event.(LiftArrived).Floor)
+	case LiftCalled:
+		logger.Println("Lift called to floor", event.(LiftCalled).Floor)
+	case LiftTransited:
+		logger.Println("Lift transited from floor", event.(LiftTransited).From, "to floor", event.(LiftTransited).To)
+	}
+
 	for _, sub := range l.subscriptions {
 		sub <- event
 	}
