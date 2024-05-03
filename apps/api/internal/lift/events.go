@@ -1,14 +1,14 @@
 package lift
 
 type LiftCalled struct {
-	Floor int
+	Floor int `json:"floor"`
 }
 type LiftTransited struct {
-	From int
-	To   int
+	From int `json:"from"`
+	To   int `json:"to"`
 }
 type LiftArrived struct {
-	Floor int
+	Floor int `json:"floor"`
 }
 type Event interface{}
 
