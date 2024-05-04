@@ -1,16 +1,15 @@
-package manager
+package lift
 
 import (
 	"github.com/google/uuid"
-	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
 	"sync"
 	"testing"
 	"time"
 )
 
-func makeLift(ps pubsub.PubSub) *lift.Lift {
-	return lift.NewLift(ps, 0, 10, 1)
+func makeLift(ps pubsub.PubSub) *Lift {
+	return NewLift(ps, 0, 10, 1)
 }
 
 func ensureSubscribe(t *testing.T, manager *Manager) (uuid.UUID, <-chan pubsub.Message) {
@@ -52,7 +51,7 @@ func TestManager(t *testing.T) {
 					done <- false
 				case msg := <-ch:
 					switch msg.(type) {
-					case lift.LiftCalled:
+					case LiftCalled:
 						done <- true
 					}
 				}
@@ -77,7 +76,7 @@ func TestManager(t *testing.T) {
 		m.CallLift(liftTwo.Id, 3)
 
 		called := make(chan int, 2)
-		ticker := time.NewTicker(1 * time.Second)
+		ticker := time.NewTicker(2 * time.Second)
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
@@ -87,8 +86,8 @@ func TestManager(t *testing.T) {
 					t.Errorf("Expected to receive lift call")
 				case msg := <-ch:
 					switch msg.(type) {
-					case lift.LiftCalled:
-						called <- msg.(lift.LiftCalled).Floor
+					case LiftCalled:
+						called <- msg.(LiftCalled).Floor
 						wg.Done()
 					}
 				}
@@ -126,6 +125,24 @@ func TestManager(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			t.Error("Expected to not receive lift call")
 		}
+	})
 
+	t.Run("getting state", func(t *testing.T) {
+		ps := pubsub.NewMemoryPubSub()
+		m := NewManager(ps)
+		l1 := NewLift(ps, 0, 10, 1)
+		l2 := NewLift(ps, 10, 40, 3)
+		m.AddLift(l1)
+		m.AddLift(l2)
+		state := m.State()
+		if len(state) != 2 {
+			t.Errorf("Expected 2 lifts, got %d", len(state))
+		}
+		if state[l1.Id].CurrentFloor != 0 {
+			t.Errorf("Expected l1 to be on floor 0, got %d", state[l1.Id].CurrentFloor)
+		}
+		if state[l2.Id].CurrentFloor != 10 {
+			t.Errorf("Expected l2 to be on floor 10, got %d", state[l2.Id].CurrentFloor)
+		}
 	})
 }

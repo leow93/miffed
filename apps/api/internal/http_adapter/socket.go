@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"log"
 	"net/http"
 )
@@ -21,15 +20,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type callLiftDto struct {
-	Floor int    `json:"floor"`
-	Type  string `json:"type"`
+	LiftId string `json:"lift_id"`
+	Floor  int    `json:"floor"`
+	Type   string `json:"type"`
 }
 
-func newCallLiftDto(floor int) callLiftDto {
-	return callLiftDto{Floor: floor, Type: "call_lift"}
-}
-
-func reader(c *websocket.Conn, lift *lift.Lift) {
+func reader(c *websocket.Conn, manager *lift.Manager) {
 	for {
 		_, message, err := c.ReadMessage()
 		if err != nil {
@@ -41,22 +37,26 @@ func reader(c *websocket.Conn, lift *lift.Lift) {
 			break
 		}
 		if req.Type == "call_lift" {
-			lift.Call(req.Floor)
+			id, e := lift.ParseId(req.LiftId)
+			if e != nil {
+				break
+			}
+			manager.CallLift(id, req.Floor)
 		}
 	}
 }
 
 type initialise struct {
-	Type string         `json:"type"`
-	Data lift.LiftState `json:"data"`
+	Type string            `json:"type"`
+	Data lift.ManagerState `json:"data"`
 }
 
-func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
-	id, liftChan, err := ps.Subscribe(lift.Topic(l.Id))
+func writer(c *websocket.Conn, manager *lift.Manager) {
+	id, liftChan, err := manager.Subscribe()
 	if err != nil {
 		return
 	}
-	defer ps.Unsubscribe(id)
+	defer manager.Unsubscribe(id)
 
 	// send the current floor of the lift
 	w, err := c.NextWriter(websocket.TextMessage)
@@ -64,7 +64,7 @@ func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 		return
 	}
 
-	init := initialise{Type: "initialise", Data: l.State()}
+	init := initialise{Type: "initialise", Data: manager.State()}
 	bytes, err := json.Marshal(init)
 	if err != nil {
 		return
@@ -97,7 +97,7 @@ func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 	}
 }
 
-func socketHandler(lift *lift.Lift, ps pubsub.PubSub) http.Handler {
+func socketHandler(manager *lift.Manager) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -105,7 +105,7 @@ func socketHandler(lift *lift.Lift, ps pubsub.PubSub) http.Handler {
 			return
 		}
 
-		go reader(c, lift)
-		go writer(c, lift, ps)
+		go reader(c, manager)
+		go writer(c, manager)
 	})
 }

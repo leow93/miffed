@@ -9,6 +9,10 @@ import (
 
 type Id = uuid.UUID
 
+func ParseId(s string) (Id, error) {
+	return uuid.Parse(s)
+}
+
 type Lift struct {
 	Id           Id
 	lowestFloor  int

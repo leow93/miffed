@@ -1,45 +1,46 @@
-package manager
+package lift
 
 import (
 	"github.com/google/uuid"
-	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
 	"sync"
 )
 
 type Manager struct {
 	pubsub                        pubsub.PubSub
-	lifts                         map[lift.Id]*lift.Lift
+	lifts                         map[Id]*Lift
 	globalToLiftSubscriptionIdMap map[uuid.UUID][]uuid.UUID
 	mutex                         sync.Mutex
 }
 
+type ManagerState map[Id]LiftState
+
 func NewManager(ps pubsub.PubSub) *Manager {
 	return &Manager{
-		lifts:                         make(map[lift.Id]*lift.Lift),
+		lifts:                         make(map[Id]*Lift),
 		pubsub:                        ps,
 		globalToLiftSubscriptionIdMap: make(map[uuid.UUID][]uuid.UUID),
 	}
 }
 
-func (m *Manager) AddLift(l *lift.Lift) {
+func (m *Manager) AddLift(l *Lift) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.lifts[l.Id] = l
 }
 
-func (m *Manager) GetLift(id lift.Id) *lift.Lift {
+func (m *Manager) GetLift(id Id) *Lift {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	return m.lifts[id]
 }
 
-func (m *Manager) CallLift(id lift.Id, floor int) {
+func (m *Manager) CallLift(id Id, floor int) bool {
 	l := m.GetLift(id)
 	if l == nil {
-		return
+		return false
 	}
-	l.Call(floor)
+	return l.Call(floor)
 }
 
 func (m *Manager) Subscribe() (uuid.UUID, <-chan pubsub.Message, error) {
@@ -52,7 +53,7 @@ func (m *Manager) Subscribe() (uuid.UUID, <-chan pubsub.Message, error) {
 
 	// pump messages from individual lift topics to the global lift topic
 	for _, l := range m.lifts {
-		liftSubId, liftChan, e := m.pubsub.Subscribe(lift.Topic(l.Id))
+		liftSubId, liftChan, e := m.pubsub.Subscribe(Topic(l.Id))
 		if e != nil {
 			m.pubsub.Unsubscribe(liftSubId)
 			return id, ch, e
@@ -62,7 +63,8 @@ func (m *Manager) Subscribe() (uuid.UUID, <-chan pubsub.Message, error) {
 
 		go func(channel <-chan pubsub.Message) {
 			for {
-				m.pubsub.Publish("lift", <-channel)
+				msg := <-channel
+				m.pubsub.Publish("lift", msg)
 			}
 		}(liftChan)
 	}
@@ -82,4 +84,14 @@ func (m *Manager) Unsubscribe(id uuid.UUID) {
 		m.pubsub.Unsubscribe(internalId)
 	}
 	delete(m.globalToLiftSubscriptionIdMap, id)
+}
+
+func (m *Manager) State() ManagerState {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	state := make(ManagerState)
+	for id, l := range m.lifts {
+		state[id] = l.State()
+	}
+	return state
 }
