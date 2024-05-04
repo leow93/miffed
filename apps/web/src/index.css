@@ -55,6 +55,10 @@ button:focus-visible {
   align-items: center;
 }
 
+.flex.align-end {
+  align-items: flex-end;
+}
+
 .flex.col {
   flex-direction: column;
 }

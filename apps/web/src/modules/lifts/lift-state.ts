@@ -26,7 +26,7 @@ const liftTransited = (from: number, to: number): LiftTransited => ({
 });
 
 type Initialise = {
-  type: "initialise";
+  type: "initialise_lift";
   data: {
     floor: number;
     lowestFloor: number;
@@ -34,7 +34,7 @@ type Initialise = {
   };
 };
 const initialise = (floor: number, lowestFloor: number, highestFloor: number): Initialise => ({
-  type: "initialise",
+  type: "initialise_lift",
   data: {
     floor,
     lowestFloor,
@@ -52,7 +52,7 @@ export type Message = LiftTransited | Initialise;
 export const reducer = (state: LiftState, message: Message): LiftState => {
   if (state.type === "initial") {
     switch (message.type) {
-      case "initialise":
+      case "initialise_lift":
         return {
           type: "created",
           currentFloor: message.data.floor,

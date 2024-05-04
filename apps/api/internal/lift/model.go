@@ -69,7 +69,7 @@ func (l *Lift) transitionToFloor(floor int) {
 	for l.currentFloor != floor {
 		l.transit(delta)
 	}
-	l.pubsub.Publish(Topic(l.Id), LiftArrived{Floor: l.currentFloor})
+	l.pubsub.Publish(Topic(l.Id), LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
 }
 
 func (l *Lift) transit(delta int) {
@@ -78,7 +78,7 @@ func (l *Lift) transit(delta int) {
 	sleepTime := time.Second / time.Duration(l.speed)
 	time.Sleep(sleepTime)
 	l.currentFloor = l.currentFloor + delta
-	l.pubsub.Publish(Topic(l.Id), LiftTransited{From: curr, To: l.currentFloor})
+	l.pubsub.Publish(Topic(l.Id), LiftTransited{LiftId: l.Id, From: curr, To: l.currentFloor})
 }
 
 // Start
@@ -107,7 +107,7 @@ func (l *Lift) State() LiftState {
 func (l *Lift) Call(floor int) bool {
 	enqueued := l.enqueue(floor)
 	if enqueued {
-		l.pubsub.Publish(Topic(l.Id), LiftCalled{Floor: floor})
+		l.pubsub.Publish(Topic(l.Id), LiftCalled{LiftId: l.Id, Floor: floor})
 	}
 	return enqueued
 }

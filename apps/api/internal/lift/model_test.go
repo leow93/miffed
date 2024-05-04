@@ -21,7 +21,8 @@ func TestCallLift(t *testing.T) {
 		lift.Call(5)
 		ev := <-sub
 		liftCalled := LiftCalled{
-			Floor: 5,
+			LiftId: lift.Id,
+			Floor:  5,
 		}
 		if ev != liftCalled {
 			t.Errorf("Expected to be notified when lift is called")
@@ -39,7 +40,8 @@ func TestCallLift(t *testing.T) {
 		}
 		ev := <-sub
 		liftCalled := LiftCalled{
-			Floor: 5,
+			LiftId: lift.Id,
+			Floor:  5,
 		}
 		if ev != liftCalled {
 			t.Errorf("Expected to be notified when lift is called")
@@ -59,10 +61,10 @@ func TestCallLift(t *testing.T) {
 		_, sub, _ := ps.Subscribe(Topic(lift.Id))
 		lift.Call(2)
 		expectedEvents := []Event{
-			LiftCalled{Floor: 2},
-			LiftTransited{From: 0, To: 1},
-			LiftTransited{From: 1, To: 2},
-			LiftArrived{Floor: 2},
+			LiftCalled{LiftId: lift.Id, Floor: 2},
+			LiftTransited{LiftId: lift.Id, From: 0, To: 1},
+			LiftTransited{LiftId: lift.Id, From: 1, To: 2},
+			LiftArrived{LiftId: lift.Id, Floor: 2},
 		}
 		for _, expected := range expectedEvents {
 			ev := <-sub
@@ -89,7 +91,7 @@ func TestCallLift(t *testing.T) {
 		go func() {
 			for {
 				ev := <-sub
-				if ev == (LiftArrived{Floor: 5}) {
+				if ev == (LiftArrived{LiftId: lift.Id, Floor: 5}) {
 					done <- true
 					break
 				}

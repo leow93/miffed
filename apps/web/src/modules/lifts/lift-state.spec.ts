@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { LiftState, reducer, Actions } from "./state.ts";
+import { LiftState, reducer, Actions } from "./lift-state.ts";
 
 it("initializes the state", () => {
   const state = reducer({ type: "initial" }, Actions.initialise(4, 1, 10));

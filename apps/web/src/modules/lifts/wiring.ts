@@ -1,5 +1,5 @@
 import React from "react";
-import { initialState, reducer } from "./state.ts";
+import { initialState, reducer } from "./lifts-state";
 
 export const useLiftState = (socket: WebSocket) => {
   const [state, dispatch] = React.useReducer(reducer, initialState);
@@ -13,6 +13,7 @@ export const useLiftState = (socket: WebSocket) => {
 };
 
 type SendMessage = {
+  liftId: string;
   type: "call_lift";
   floor: number;
 };

@@ -23,7 +23,7 @@ function Lift(props: LiftProps) {
         [props.lowestFloor, props.highestFloor],
     );
     return (
-        <div className="flex col">
+        <div className="flex col mx-2">
             {arr.map(floor => (
                 <button
                     key={floor}
@@ -37,14 +37,15 @@ function Lift(props: LiftProps) {
     );
 }
 
+const ws = socket("ws://localhost:8080/socket");
 function App() {
-    const ws = useMemo(() => socket("ws://localhost:8080/socket"), []);
 
     const state = useLiftState(ws);
     const sendMessage = useSendMessage(ws);
 
-    const onCall = (floor: number) => {
+    const onCall = (liftId: string, floor: number) => {
         sendMessage({
+            liftId,
             type: "call_lift",
             floor,
         });
@@ -52,14 +53,24 @@ function App() {
 
     return (
         <main>
-            {state.type === "created" && (
-                <Lift
-                    lowestFloor={state.lowestFloor}
-                    highestFloor={state.highestFloor}
-                    onCall={onCall}
-                    currentFloor={state.currentFloor}
-                />
-            )}
+            <div className='flex align-end'>
+                {Object.entries(state).map(([liftId, liftState]) => {
+                    if (liftState.type === "created") {
+                        return (
+                            <Lift
+                                key={liftId}
+                                lowestFloor={liftState.lowestFloor}
+                                highestFloor={liftState.highestFloor}
+                                currentFloor={liftState.currentFloor}
+                                onCall={floor => onCall(liftId, floor)}
+                            />
+                        );
+                    }
+
+                    return null
+                })}
+            </div>
+
         </main>
     );
 }
