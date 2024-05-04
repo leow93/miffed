@@ -46,19 +46,13 @@ func reader(c *websocket.Conn, lift *lift.Lift) {
 	}
 }
 
-type initData struct {
-	Floor        int `json:"floor"`
-	LowestFloor  int `json:"lowestFloor"`
-	HighestFloor int `json:"highestFloor"`
-}
-
 type initialise struct {
-	Type string   `json:"type"`
-	Data initData `json:"data"`
+	Type string         `json:"type"`
+	Data lift.LiftState `json:"data"`
 }
 
 func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
-	id, liftChan, err := ps.Subscribe("lift")
+	id, liftChan, err := ps.Subscribe(lift.Topic(l.Id))
 	if err != nil {
 		return
 	}
@@ -70,7 +64,7 @@ func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 		return
 	}
 
-	init := initialise{Type: "initialise", Data: initData{Floor: l.CurrentFloor(), LowestFloor: l.LowestFloor(), HighestFloor: l.HighestFloor()}}
+	init := initialise{Type: "initialise", Data: l.State()}
 	bytes, err := json.Marshal(init)
 	if err != nil {
 		return

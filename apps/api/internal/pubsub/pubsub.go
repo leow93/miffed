@@ -32,6 +32,8 @@ func (ps *MemoryPubSub) addSubscriber(topic Topic, id uuid.UUID) <-chan Message 
 }
 
 func (ps *MemoryPubSub) Publish(topic Topic, message Message) error {
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
 	for _, subscriber := range ps.subscribers[topic] {
 		go func(subscriber chan Message) {
 			subscriber <- message
