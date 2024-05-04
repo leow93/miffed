@@ -50,12 +50,34 @@ func reader(c *websocket.Conn, lift *lift.Lift) {
 	}
 }
 
-func writer(c *websocket.Conn, ps pubsub.PubSub) {
+type currentFloor struct {
+	Floor int    `json:"floor"`
+	Type  string `json:"type"`
+}
+
+func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 	id, liftChan, err := ps.Subscribe("lift")
 	if err != nil {
 		return
 	}
 	defer ps.Unsubscribe(id)
+
+	// send the current floor of the lift
+	w, err := c.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return
+	}
+	var cf currentFloor
+	cf.Floor = l.CurrentFloor()
+	cf.Type = "current_floor"
+	bytes, err := json.Marshal(cf)
+	if err != nil {
+		return
+	}
+	w.Write(bytes)
+	if err := w.Close(); err != nil {
+		return
+	}
 
 	for {
 		msg := <-liftChan
@@ -89,6 +111,6 @@ func socketHandler(lift *lift.Lift, ps pubsub.PubSub) http.Handler {
 		}
 
 		go reader(c, lift)
-		go writer(c, ps)
+		go writer(c, lift, ps)
 	})
 }
