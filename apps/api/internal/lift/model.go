@@ -12,21 +12,18 @@ type Lift struct {
 	currentFloor int
 	speed        int    // queue per second
 	requests     *Queue // queue to visit
-	ctx          context.Context
 	pubsub       pubsub.PubSub
 }
 
-func NewLift(ctx context.Context, ps pubsub.PubSub, lowestFloor, highestFloor, currentFloor, floorsPerSecond int) *Lift {
+func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, floorsPerSecond int) *Lift {
 	lift := &Lift{
 		lowestFloor:  lowestFloor,
 		highestFloor: highestFloor,
-		currentFloor: currentFloor,
+		currentFloor: lowestFloor,
 		speed:        floorsPerSecond,
 		requests:     NewQueue(),
-		ctx:          ctx,
 		pubsub:       ps,
 	}
-	lift.Start()
 	return lift
 }
 
@@ -34,7 +31,6 @@ func (l *Lift) enqueue(floor int) bool {
 	return l.requests.Enqueue(floor)
 }
 
-// TODO: processor should probably be a separate thing
 func (l *Lift) processFloorRequest() {
 	if l.requests.Length() == 0 {
 		return
@@ -68,11 +64,11 @@ func (l *Lift) transit(delta int) {
 
 // Start
 // Gets the lift to listen for calls
-func (l *Lift) Start() {
+func (l *Lift) Start(ctx context.Context) {
 	go func() {
 		for {
 			select {
-			case <-l.ctx.Done():
+			case <-ctx.Done():
 				return
 			default:
 				l.processFloorRequest()
@@ -85,11 +81,18 @@ func (l *Lift) CurrentFloor() int {
 	return l.currentFloor
 }
 
-func (l *Lift) Call(floor int) {
-	go func() {
-		enqueued := l.enqueue(floor)
-		if enqueued {
-			l.pubsub.Publish("lift", LiftCalled{Floor: floor})
-		}
-	}()
+func (l *Lift) HighestFloor() int {
+	return l.highestFloor
+}
+
+func (l *Lift) LowestFloor() int {
+	return l.lowestFloor
+}
+
+func (l *Lift) Call(floor int) bool {
+	enqueued := l.enqueue(floor)
+	if enqueued {
+		l.pubsub.Publish("lift", LiftCalled{Floor: floor})
+	}
+	return enqueued
 }

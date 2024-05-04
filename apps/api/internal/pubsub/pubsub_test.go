@@ -1,6 +1,9 @@
 package pubsub
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestMemoryPubSub(t *testing.T) {
 	t.Run("publishing a message", func(t *testing.T) {
@@ -14,7 +17,7 @@ func TestMemoryPubSub(t *testing.T) {
 
 	t.Run("subscribing to a topic", func(t *testing.T) {
 		pubsub := NewMemoryPubSub()
-		subscription, err := pubsub.Subscribe("test")
+		_, subscription, err := pubsub.Subscribe("test")
 		pubsub.Publish("test", "hello")
 		if err != nil {
 			t.Errorf("got error %v, want nil", err)
@@ -26,8 +29,8 @@ func TestMemoryPubSub(t *testing.T) {
 	})
 	t.Run("multiple subscribers receive the message", func(t *testing.T) {
 		pubsub := NewMemoryPubSub()
-		subscription1, _ := pubsub.Subscribe("test")
-		subscription2, _ := pubsub.Subscribe("test")
+		_, subscription1, _ := pubsub.Subscribe("test")
+		_, subscription2, _ := pubsub.Subscribe("test")
 		pubsub.Publish("test", "hello")
 		message1 := <-subscription1
 		message2 := <-subscription2
@@ -40,8 +43,8 @@ func TestMemoryPubSub(t *testing.T) {
 	})
 	t.Run("subscriptions only receive messages for their topic", func(t *testing.T) {
 		pubsub := NewMemoryPubSub()
-		subscription1, _ := pubsub.Subscribe("foo")
-		subscription2, _ := pubsub.Subscribe("bar")
+		_, subscription1, _ := pubsub.Subscribe("foo")
+		_, subscription2, _ := pubsub.Subscribe("bar")
 		pubsub.Publish("foo", "hello")
 		pubsub.Publish("bar", "world")
 		message1 := <-subscription1
@@ -56,11 +59,33 @@ func TestMemoryPubSub(t *testing.T) {
 	t.Run("subscriptions only receive messages once they have subscribed", func(t *testing.T) {
 		pubsub := NewMemoryPubSub()
 		pubsub.Publish("foo", "hello")
-		subscription1, _ := pubsub.Subscribe("foo")
+		_, subscription1, _ := pubsub.Subscribe("foo")
+
 		pubsub.Publish("foo", "world")
 		message1 := <-subscription1
 		if message1 != "world" {
 			t.Errorf("got message %v, want world", message1)
+		}
+	})
+
+	t.Run("unsubscribing", func(t *testing.T) {
+		pubsub := NewMemoryPubSub()
+		id, subscription1, _ := pubsub.Subscribe("foo")
+		pubsub.Publish("foo", "hello")
+		message1 := <-subscription1
+		if message1 != "hello" {
+			t.Errorf("got message %v, want hello", message1)
+		}
+		ticker := time.NewTicker(1 * time.Second)
+		pubsub.Unsubscribe(id)
+		pubsub.Publish("foo", "world")
+		select {
+		case message1 = <-subscription1:
+			if message1 != nil {
+				t.Errorf("expected no message, got %v", message1)
+			}
+		case <-ticker.C:
+			t.Errorf("timed out")
 		}
 	})
 }
