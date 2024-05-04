@@ -34,7 +34,7 @@ func readTextMessage(t *testing.T, ws *websocket.Conn) []byte {
 func TestSocket(t *testing.T) {
 	t.Run("establishing a connection", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		l := lift.NewLift(ps, 0, 10, 0, 1)
+		l := lift.NewLift(ps, 0, 10, 1)
 
 		server := httptest.NewServer(NewServer(l, ps))
 		defer server.Close()
@@ -43,26 +43,26 @@ func TestSocket(t *testing.T) {
 
 		msg := readTextMessage(t, ws)
 
-		var event currentFloor
+		var event initialise
 		err := json2.Unmarshal(msg, &event)
 		if err != nil {
 			t.Fatalf("could not unmarshal message %v", err)
 		}
-		if event.Type != "current_floor" {
-			t.Fatalf("expected current floor message, got %s", event.Type)
+		if event.Type != "initialise" {
+			t.Fatalf("expected initialise message, got %s", event.Type)
 		}
 	})
 
 	t.Run("sending messages", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		l := lift.NewLift(ps, 0, 10, 0, 1)
+		l := lift.NewLift(ps, 0, 10, 1)
 
 		server := httptest.NewServer(NewServer(l, ps))
 		defer server.Close()
 		ws := ensureWsConnection(t, server)
 		defer ws.Close()
 
-		readTextMessage(t, ws) // current floor message
+		readTextMessage(t, ws) // init message
 
 		dto := newCallLiftDto(5)
 		json, _ := json2.Marshal(dto)

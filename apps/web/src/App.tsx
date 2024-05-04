@@ -1,31 +1,49 @@
-import { useMemo } from 'react'
+import {useMemo} from 'react'
 import './App.css'
+import {socket} from "./modules/socket";
+import {useLiftState, useSendMessage} from "./modules/lifts/wiring.ts";
 
 type LiftProps = {
-    floors: number
+    lowestFloor: number
+    highestFloor: number
+    currentFloor: number
+    onCall: (floor: number) => void
 }
 
+const classNames = (currentFloor: number, floor: number) =>
+    currentFloor === floor ? 'bg-blue my-2' : 'my-2'
+
 function Lift(props: LiftProps) {
-    const arr = useMemo(() => Array.from({ length: props.floors }, (_, i) => props.floors - i), [props.floors])
+    const arr = useMemo(() => Array.from({length: props.highestFloor - props.lowestFloor + 1}, (_, i) => props.highestFloor - i), [props.lowestFloor, props.highestFloor])
     return (
         <div className="flex col">
             {arr.map(floor => (
-                <button key={floor} className="my-2">{floor}</button>
+                <button key={floor} onClick={() => props.onCall(floor)}
+                        className={classNames(props.currentFloor, floor)}>{floor}</button>
             ))}
         </div>
     )
-
-}
-
-type Lift = {
-    id: number
-    floor: number
 }
 
 function App() {
+    const ws = useMemo(() => socket('ws://localhost:8080/socket'), [])
+
+    const state = useLiftState(ws)
+    const sendMessage = useSendMessage(ws)
+
+    const onCall = (floor: number) => {
+        sendMessage({
+            type: 'call_lift',
+            floor
+        })
+    }
+
     return (
         <main>
-            <Lift floors={10}/>
+            {state.type === 'created' && (
+                <Lift lowestFloor={state.lowestFloor} highestFloor={state.highestFloor} onCall={onCall}
+                      currentFloor={state.currentFloor}/>
+            )}
         </main>
     )
 }

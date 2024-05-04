@@ -14,7 +14,7 @@ const address = ":8080"
 func main() {
 	ctx := context.Background()
 	ps := pubsub.NewMemoryPubSub()
-	l := lift.NewLift(ps, 0, 10, 0, 1)
+	l := lift.NewLift(ps, 0, 10, 1)
 	l.Start(ctx)
 
 	server := http_adapter.NewServer(l, ps)

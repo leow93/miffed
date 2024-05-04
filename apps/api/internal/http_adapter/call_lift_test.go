@@ -18,7 +18,7 @@ func createBody[T any](body T) io.Reader {
 func TestCallLift(t *testing.T) {
 	t.Run("calling a lift", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		l := lift.NewLift(ps, 0, 10, 0, 1)
+		l := lift.NewLift(ps, 0, 10, 1)
 		server := NewServer(l, ps)
 
 		rec := httptest.NewRecorder()
@@ -40,7 +40,7 @@ func TestCallLift(t *testing.T) {
 
 	t.Run("bad request begets a bad request response", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		l := lift.NewLift(ps, 0, 10, 0, 1)
+		l := lift.NewLift(ps, 0, 10, 1)
 		server := NewServer(l, ps)
 
 		rec := httptest.NewRecorder()

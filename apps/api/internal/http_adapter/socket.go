@@ -2,7 +2,6 @@ package http_adapter
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
@@ -42,17 +41,20 @@ func reader(c *websocket.Conn, lift *lift.Lift) {
 			break
 		}
 		if req.Type == "call_lift" {
-			called := lift.Call(req.Floor)
-			if called {
-				fmt.Println("lift called")
-			}
+			lift.Call(req.Floor)
 		}
 	}
 }
 
-type currentFloor struct {
-	Floor int    `json:"floor"`
-	Type  string `json:"type"`
+type initData struct {
+	Floor        int `json:"floor"`
+	LowestFloor  int `json:"lowestFloor"`
+	HighestFloor int `json:"highestFloor"`
+}
+
+type initialise struct {
+	Type string   `json:"type"`
+	Data initData `json:"data"`
 }
 
 func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
@@ -67,10 +69,9 @@ func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 	if err != nil {
 		return
 	}
-	var cf currentFloor
-	cf.Floor = l.CurrentFloor()
-	cf.Type = "current_floor"
-	bytes, err := json.Marshal(cf)
+
+	init := initialise{Type: "initialise", Data: initData{Floor: l.CurrentFloor(), LowestFloor: l.LowestFloor(), HighestFloor: l.HighestFloor()}}
+	bytes, err := json.Marshal(init)
 	if err != nil {
 		return
 	}

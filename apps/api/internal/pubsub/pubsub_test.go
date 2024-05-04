@@ -81,9 +81,11 @@ func TestMemoryPubSub(t *testing.T) {
 		pubsub.Publish("foo", "world")
 		select {
 		case message1 = <-subscription1:
-			t.Errorf("expected no message, got %v", message1)
+			if message1 != nil {
+				t.Errorf("expected no message, got %v", message1)
+			}
 		case <-ticker.C:
-
+			t.Errorf("timed out")
 		}
 	})
 }

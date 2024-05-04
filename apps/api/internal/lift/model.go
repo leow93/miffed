@@ -15,11 +15,11 @@ type Lift struct {
 	pubsub       pubsub.PubSub
 }
 
-func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, currentFloor, floorsPerSecond int) *Lift {
+func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, floorsPerSecond int) *Lift {
 	lift := &Lift{
 		lowestFloor:  lowestFloor,
 		highestFloor: highestFloor,
-		currentFloor: currentFloor,
+		currentFloor: lowestFloor,
 		speed:        floorsPerSecond,
 		requests:     NewQueue(),
 		pubsub:       ps,
@@ -79,6 +79,14 @@ func (l *Lift) Start(ctx context.Context) {
 
 func (l *Lift) CurrentFloor() int {
 	return l.currentFloor
+}
+
+func (l *Lift) HighestFloor() int {
+	return l.highestFloor
+}
+
+func (l *Lift) LowestFloor() int {
+	return l.lowestFloor
 }
 
 func (l *Lift) Call(floor int) bool {

@@ -16,7 +16,7 @@ func TestCallLift(t *testing.T) {
 
 	t.Run("calling a lift", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, 0, floorsPerSecond)
+		lift := NewLift(ps, 0, 10, floorsPerSecond)
 		_, sub, _ := ps.Subscribe(topic)
 
 		lift.Call(5)
@@ -31,7 +31,7 @@ func TestCallLift(t *testing.T) {
 
 	t.Run("calling a lift is idempotent", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, 0, floorsPerSecond)
+		lift := NewLift(ps, 0, 10, floorsPerSecond)
 		_, sub, _ := ps.Subscribe(topic)
 
 		called := lift.Call(5)
@@ -53,7 +53,7 @@ func TestCallLift(t *testing.T) {
 
 	t.Run("notification of lift transits", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, 0, floorsPerSecond)
+		lift := NewLift(ps, 0, 10, floorsPerSecond)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		lift.Start(ctx)
@@ -79,7 +79,7 @@ func TestCallLift(t *testing.T) {
 	t.Run("calling a lift down", func(t *testing.T) {
 
 		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, 10, floorsPerSecond)
+		lift := NewLift(ps, 0, 10, floorsPerSecond)
 		_, sub, _ := ps.Subscribe(topic)
 		lift.Call(5)
 		done := make(chan bool, 1)
@@ -104,7 +104,7 @@ func TestCallLift(t *testing.T) {
 
 	t.Run("lift visits all floors called", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, 0, floorsPerSecond)
+		lift := NewLift(ps, 0, 10, floorsPerSecond)
 		_, sub, _ := ps.Subscribe(topic)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

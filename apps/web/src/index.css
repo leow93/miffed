@@ -78,3 +78,9 @@ button:focus-visible {
   margin-right: 0.5rem;
 }
 
+/*Background */
+.bg-blue {
+  background-color: #646cff;
+  color: white;
+}
+
