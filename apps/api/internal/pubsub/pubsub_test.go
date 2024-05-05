@@ -76,16 +76,31 @@ func TestMemoryPubSub(t *testing.T) {
 		if message1 != "hello" {
 			t.Errorf("got message %v, want hello", message1)
 		}
-		ticker := time.NewTicker(1 * time.Second)
+		ticker := time.NewTicker(100 * time.Millisecond)
 		pubsub.Unsubscribe(id)
 		pubsub.Publish("foo", "world")
 		select {
 		case message1 = <-subscription1:
-			if message1 != nil {
-				t.Errorf("expected no message, got %v", message1)
-			}
+			t.Errorf("expected no message, got %v", message1)
 		case <-ticker.C:
-			t.Errorf("timed out")
+			// ok
 		}
+	})
+
+	t.Run("unsubscribing prevents writing to closed channel", func(t *testing.T) {
+		pubsub := NewMemoryPubSub()
+		id, _, _ := pubsub.Subscribe("foo")
+		go func() {
+			for {
+				pubsub.Publish("foo", "world")
+				time.Sleep(time.Millisecond)
+			}
+		}()
+		// Unsubscribe after 1 second
+		go func() {
+			<-time.After(1 * time.Second)
+			pubsub.Unsubscribe(id)
+		}()
+		<-time.After(1500 * time.Millisecond)
 	})
 }

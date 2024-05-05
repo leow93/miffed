@@ -76,20 +76,15 @@ func TestManager(t *testing.T) {
 		m.CallLift(liftTwo.Id, 3)
 
 		called := make(chan int, 2)
-		ticker := time.NewTicker(2 * time.Second)
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
 			for {
-				select {
-				case <-ticker.C:
-					t.Errorf("Expected to receive lift call")
-				case msg := <-ch:
-					switch msg.(type) {
-					case LiftCalled:
-						called <- msg.(LiftCalled).Floor
-						wg.Done()
-					}
+				msg := <-ch
+				switch msg.(type) {
+				case LiftCalled:
+					called <- msg.(LiftCalled).Floor
+					wg.Done()
 				}
 			}
 		}()
@@ -118,12 +113,10 @@ func TestManager(t *testing.T) {
 		m.Unsubscribe(id)
 		l.Call(3)
 		select {
-		case msg := <-ch:
-			if msg != nil {
-				t.Error("Expected to not receive lift call")
-			}
-		case <-time.After(1 * time.Second):
+		case <-ch:
 			t.Error("Expected to not receive lift call")
+		case <-time.After(1 * time.Second):
+			// ok
 		}
 	})
 
@@ -145,4 +138,5 @@ func TestManager(t *testing.T) {
 			t.Errorf("Expected l2 to be on floor 10, got %d", state[l2.Id].CurrentFloor)
 		}
 	})
+
 }

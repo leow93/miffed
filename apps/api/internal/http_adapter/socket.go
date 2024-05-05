@@ -2,7 +2,6 @@ package http_adapter
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/leow93/miffed-api/internal/lift"
 	"log"
@@ -100,7 +99,6 @@ func writer(c *websocket.Conn, manager *lift.Manager) {
 
 func socketHandler(manager *lift.Manager) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("got connection")
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Println("error upgrading connection", err)
