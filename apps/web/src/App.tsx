@@ -1,7 +1,8 @@
-import {useMemo} from "react";
+import React, {useMemo} from "react";
 import "./App.css";
 import {socket} from "./modules/socket";
 import {useLiftState, useSendMessage} from "./modules/lifts/wiring";
+import {useLog} from "./modules/log";
 
 type LiftProps = {
     lowestFloor: number;
@@ -38,9 +39,11 @@ function Lift(props: LiftProps) {
 }
 
 const ws = socket("ws://localhost:8080/socket");
+
 function App() {
 
     const state = useLiftState(ws);
+    const log = useLog(ws);
     const sendMessage = useSendMessage(ws);
 
     const onCall = (liftId: string, floor: number) => {
@@ -51,9 +54,24 @@ function App() {
         });
     };
 
+    const [showLog, setShowLog] = React.useState(false);
+
     return (
         <main>
+            <button onClick={() => setShowLog(!showLog)}>
+                {showLog ? "Hide Log" : "Show Log"}
+            </button>
+
             <div className='flex align-end'>
+                {showLog && (
+                    <div>
+                        {log.map((line, index) => (
+                            <div key={index}>{line}</div>
+                        ))}
+                    </div>
+
+                )}
+
                 {Object.entries(state).map(([liftId, liftState]) => {
                     if (liftState.type === "created") {
                         return (

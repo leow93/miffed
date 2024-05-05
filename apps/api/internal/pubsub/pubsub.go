@@ -19,6 +19,7 @@ type subscriber struct {
 	ch     chan Message
 	ctx    context.Context
 	cancel context.CancelFunc
+	once   sync.Once
 }
 
 type MemoryPubSub struct {
@@ -39,6 +40,7 @@ func (ps *MemoryPubSub) addSubscriber(topic Topic, id uuid.UUID) <-chan Message 
 		ch:     ch,
 		ctx:    ctx,
 		cancel: cncl,
+		once:   sync.Once{},
 	}
 	return ch
 }
@@ -50,7 +52,9 @@ func (ps *MemoryPubSub) Publish(topic Topic, message Message) error {
 		go func(sub subscriber) {
 			select {
 			case <-sub.ctx.Done():
-				close(sub.ch)
+				sub.once.Do(func() {
+					close(sub.ch)
+				})
 			default:
 				sub.ch <- message
 			}
