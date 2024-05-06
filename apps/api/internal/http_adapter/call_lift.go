@@ -14,16 +14,21 @@ type callLiftRes struct {
 	Floor int `json:"floor"`
 }
 
-func callLiftHandler(lift *lift.Lift) http.Handler {
+func callLiftHandler(manager *lift.Manager) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, err := lift.ParseId(r.PathValue("id"))
+		if err != nil {
+			errResponse(w, http.StatusBadRequest, err)
+			return
+		}
 		body := callLiftReq{}
-		err := json.NewDecoder(r.Body).Decode(&body)
+		err = json.NewDecoder(r.Body).Decode(&body)
 		if err != nil {
 			errResponse(w, http.StatusBadRequest, err)
 			return
 		}
 		floor := body.Floor
-		called := lift.Call(floor)
+		called := manager.CallLift(id, floor)
 		var status int
 		if called {
 			status = http.StatusCreated

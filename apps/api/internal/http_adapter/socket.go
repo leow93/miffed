@@ -2,6 +2,8 @@ package http_adapter
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
@@ -21,15 +23,18 @@ var upgrader = websocket.Upgrader{
 }
 
 type callLiftDto struct {
-	Floor int    `json:"floor"`
-	Type  string `json:"type"`
+	LiftId string `json:"liftId"`
+	Floor  int    `json:"floor"`
+	Type   string `json:"type"`
 }
 
-func newCallLiftDto(floor int) callLiftDto {
-	return callLiftDto{Floor: floor, Type: "call_lift"}
-}
+func reader(c *websocket.Conn, subscriptionId uuid.UUID, manager *lift.Manager) {
+	defer func() {
+		fmt.Println("reader unsubscribing")
+		manager.Unsubscribe(subscriptionId)
+		c.Close()
+	}()
 
-func reader(c *websocket.Conn, lift *lift.Lift) {
 	for {
 		_, message, err := c.ReadMessage()
 		if err != nil {
@@ -41,28 +46,25 @@ func reader(c *websocket.Conn, lift *lift.Lift) {
 			break
 		}
 		if req.Type == "call_lift" {
-			lift.Call(req.Floor)
+			id, e := lift.ParseId(req.LiftId)
+			if e != nil {
+				break
+			}
+			manager.CallLift(id, req.Floor)
 		}
 	}
 }
 
-type initData struct {
-	Floor        int `json:"floor"`
-	LowestFloor  int `json:"lowestFloor"`
-	HighestFloor int `json:"highestFloor"`
-}
-
 type initialise struct {
-	Type string   `json:"type"`
-	Data initData `json:"data"`
+	Type string            `json:"type"`
+	Data lift.ManagerState `json:"data"`
 }
 
-func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
-	id, liftChan, err := ps.Subscribe("lift")
-	if err != nil {
-		return
-	}
-	defer ps.Unsubscribe(id)
+func writer(c *websocket.Conn, subscriptionId uuid.UUID, ch <-chan pubsub.Message, manager *lift.Manager) {
+	defer func() {
+		manager.Unsubscribe(subscriptionId)
+		c.Close()
+	}()
 
 	// send the current floor of the lift
 	w, err := c.NextWriter(websocket.TextMessage)
@@ -70,7 +72,7 @@ func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 		return
 	}
 
-	init := initialise{Type: "initialise", Data: initData{Floor: l.CurrentFloor(), LowestFloor: l.LowestFloor(), HighestFloor: l.HighestFloor()}}
+	init := initialise{Type: "initialise", Data: manager.State()}
 	bytes, err := json.Marshal(init)
 	if err != nil {
 		return
@@ -81,7 +83,7 @@ func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 	}
 
 	for {
-		msg := <-liftChan
+		msg := <-ch
 		w, err := c.NextWriter(websocket.TextMessage)
 		if err != nil {
 			return
@@ -103,7 +105,7 @@ func writer(c *websocket.Conn, l *lift.Lift, ps pubsub.PubSub) {
 	}
 }
 
-func socketHandler(lift *lift.Lift, ps pubsub.PubSub) http.Handler {
+func socketHandler(manager *lift.Manager) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -111,7 +113,14 @@ func socketHandler(lift *lift.Lift, ps pubsub.PubSub) http.Handler {
 			return
 		}
 
-		go reader(c, lift)
-		go writer(c, lift, ps)
+		id, liftChan, err := manager.Subscribe()
+		if err != nil {
+			log.Println("error subscribing", err)
+			c.Close()
+			return
+		}
+
+		go reader(c, id, manager)
+		go writer(c, id, liftChan, manager)
 	})
 }

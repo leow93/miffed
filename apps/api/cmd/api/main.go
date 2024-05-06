@@ -14,10 +14,22 @@ const address = ":8080"
 func main() {
 	ctx := context.Background()
 	ps := pubsub.NewMemoryPubSub()
-	l := lift.NewLift(ps, 0, 10, 1)
-	l.Start(ctx)
+	liftManager := lift.NewManager(ps)
 
-	server := http_adapter.NewServer(l, ps)
+	lifts := []*lift.Lift{
+		lift.NewLift(ps, 0, 10, 1),
+		lift.NewLift(ps, 0, 8, 1),
+		lift.NewLift(ps, 0, 15, 3),
+		lift.NewLift(ps, 0, 20, 2),
+		lift.NewLift(ps, 0, 40, 4),
+	}
+
+	for _, l := range lifts {
+		liftManager.AddLift(l)
+		l.Start(ctx)
+	}
+
+	server := http_adapter.NewServer(liftManager)
 
 	if err := http.ListenAndServe(address, server); err != nil {
 		log.Fatal(err)

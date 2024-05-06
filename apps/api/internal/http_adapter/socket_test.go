@@ -34,9 +34,11 @@ func readTextMessage(t *testing.T, ws *websocket.Conn) []byte {
 func TestSocket(t *testing.T) {
 	t.Run("establishing a connection", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
+		m := lift.NewManager(ps)
 		l := lift.NewLift(ps, 0, 10, 1)
+		m.AddLift(l)
 
-		server := httptest.NewServer(NewServer(l, ps))
+		server := httptest.NewServer(NewServer(m))
 		defer server.Close()
 		ws := ensureWsConnection(t, server)
 		defer ws.Close()
@@ -55,16 +57,21 @@ func TestSocket(t *testing.T) {
 
 	t.Run("sending messages", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
+		m := lift.NewManager(ps)
 		l := lift.NewLift(ps, 0, 10, 1)
-
-		server := httptest.NewServer(NewServer(l, ps))
+		m.AddLift(l)
+		server := httptest.NewServer(NewServer(m))
 		defer server.Close()
 		ws := ensureWsConnection(t, server)
 		defer ws.Close()
 
 		readTextMessage(t, ws) // init message
 
-		dto := newCallLiftDto(5)
+		dto := callLiftDto{
+			LiftId: l.Id.String(),
+			Floor:  5,
+			Type:   "call_lift",
+		}
 		json, _ := json2.Marshal(dto)
 		if err := ws.WriteMessage(websocket.TextMessage, json); err != nil {
 			t.Fatalf("could not send message over ws connection %v", err)

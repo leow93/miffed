@@ -2,11 +2,19 @@ package lift
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/leow93/miffed-api/internal/pubsub"
 	"time"
 )
 
+type Id = uuid.UUID
+
+func ParseId(s string) (Id, error) {
+	return uuid.Parse(s)
+}
+
 type Lift struct {
+	Id           Id
 	lowestFloor  int
 	highestFloor int
 	currentFloor int
@@ -15,8 +23,19 @@ type Lift struct {
 	pubsub       pubsub.PubSub
 }
 
+type LiftState struct {
+	CurrentFloor int `json:"currentFloor"`
+	LowestFloor  int `json:"lowestFloor"`
+	HighestFloor int `json:"highestFloor"`
+}
+
+func Topic(liftId Id) pubsub.Topic {
+	return pubsub.Topic("lift:" + liftId.String())
+}
+
 func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, floorsPerSecond int) *Lift {
 	lift := &Lift{
+		Id:           Id(uuid.New()),
 		lowestFloor:  lowestFloor,
 		highestFloor: highestFloor,
 		currentFloor: lowestFloor,
@@ -50,7 +69,7 @@ func (l *Lift) transitionToFloor(floor int) {
 	for l.currentFloor != floor {
 		l.transit(delta)
 	}
-	l.pubsub.Publish("lift", LiftArrived{Floor: l.currentFloor})
+	l.pubsub.Publish(Topic(l.Id), LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
 }
 
 func (l *Lift) transit(delta int) {
@@ -59,7 +78,7 @@ func (l *Lift) transit(delta int) {
 	sleepTime := time.Second / time.Duration(l.speed)
 	time.Sleep(sleepTime)
 	l.currentFloor = l.currentFloor + delta
-	l.pubsub.Publish("lift", LiftTransited{From: curr, To: l.currentFloor})
+	l.pubsub.Publish(Topic(l.Id), LiftTransited{LiftId: l.Id, From: curr, To: l.currentFloor})
 }
 
 // Start
@@ -77,22 +96,18 @@ func (l *Lift) Start(ctx context.Context) {
 	}()
 }
 
-func (l *Lift) CurrentFloor() int {
-	return l.currentFloor
-}
-
-func (l *Lift) HighestFloor() int {
-	return l.highestFloor
-}
-
-func (l *Lift) LowestFloor() int {
-	return l.lowestFloor
+func (l *Lift) State() LiftState {
+	return LiftState{
+		CurrentFloor: l.currentFloor,
+		LowestFloor:  l.lowestFloor,
+		HighestFloor: l.highestFloor,
+	}
 }
 
 func (l *Lift) Call(floor int) bool {
 	enqueued := l.enqueue(floor)
 	if enqueued {
-		l.pubsub.Publish("lift", LiftCalled{Floor: floor})
+		l.pubsub.Publish(Topic(l.Id), LiftCalled{LiftId: l.Id, Floor: floor})
 	}
 	return enqueued
 }

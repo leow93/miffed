@@ -1,15 +1,18 @@
-export type LiftState =
+export type LiftState = {
+  currentFloor: number;
+  lowestFloor: number;
+  highestFloor: number;
+};
+
+export type State =
   | {
       type: "initial";
     }
-  | {
+  | ({
       type: "created";
-      currentFloor: number;
-      lowestFloor: number;
-      highestFloor: number;
-    };
+    } & LiftState);
 
-export const initialState: LiftState = {
+export const initialState: State = {
   type: "initial",
 };
 
@@ -26,7 +29,7 @@ const liftTransited = (from: number, to: number): LiftTransited => ({
 });
 
 type Initialise = {
-  type: "initialise";
+  type: "initialise_lift";
   data: {
     floor: number;
     lowestFloor: number;
@@ -34,7 +37,7 @@ type Initialise = {
   };
 };
 const initialise = (floor: number, lowestFloor: number, highestFloor: number): Initialise => ({
-  type: "initialise",
+  type: "initialise_lift",
   data: {
     floor,
     lowestFloor,
@@ -49,10 +52,10 @@ export const Actions = {
 
 export type Message = LiftTransited | Initialise;
 
-export const reducer = (state: LiftState, message: Message): LiftState => {
+export const reducer = (state: State, message: Message): State => {
   if (state.type === "initial") {
     switch (message.type) {
-      case "initialise":
+      case "initialise_lift":
         return {
           type: "created",
           currentFloor: message.data.floor,

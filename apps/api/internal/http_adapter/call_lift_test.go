@@ -5,6 +5,7 @@ import (
 	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -15,15 +16,22 @@ func createBody[T any](body T) io.Reader {
 	return io.Reader(strings.NewReader(string(b)))
 }
 
+func initServer() (http.Handler, *lift.Lift) {
+	ps := pubsub.NewMemoryPubSub()
+	m := lift.NewManager(ps)
+	l := lift.NewLift(ps, 0, 10, 1)
+	m.AddLift(l)
+	server := NewServer(m)
+	return server, l
+}
+
 func TestCallLift(t *testing.T) {
 	t.Run("calling a lift", func(t *testing.T) {
-		ps := pubsub.NewMemoryPubSub()
-		l := lift.NewLift(ps, 0, 10, 1)
-		server := NewServer(l, ps)
+		server, l := initServer()
 
 		rec := httptest.NewRecorder()
 		b := createBody(callLiftReq{Floor: 5})
-		req := httptest.NewRequest("POST", "/call", b)
+		req := httptest.NewRequest("POST", "/lift/"+l.Id.String()+"/call", b)
 
 		server.ServeHTTP(rec, req)
 
@@ -39,13 +47,11 @@ func TestCallLift(t *testing.T) {
 	})
 
 	t.Run("bad request begets a bad request response", func(t *testing.T) {
-		ps := pubsub.NewMemoryPubSub()
-		l := lift.NewLift(ps, 0, 10, 1)
-		server := NewServer(l, ps)
+		server, l := initServer()
 
 		rec := httptest.NewRecorder()
 		b := createBody(map[string]interface{}{"floor": "5"})
-		req := httptest.NewRequest("POST", "/call", b)
+		req := httptest.NewRequest("POST", "/lift/"+l.Id.String()+"/call", b)
 
 		server.ServeHTTP(rec, req)
 

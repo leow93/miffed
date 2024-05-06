@@ -3,7 +3,6 @@ package http_adapter
 import (
 	"encoding/json"
 	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"net/http"
 )
 
@@ -27,9 +26,9 @@ func errResponse(w http.ResponseWriter, status int, err error) {
 	})
 }
 
-func NewServer(lift *lift.Lift, ps pubsub.PubSub) http.Handler {
+func NewServer(manager *lift.Manager) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("POST /call", callLiftHandler(lift))
-	mux.Handle("/socket", socketHandler(lift, ps))
+	mux.Handle("POST /lift/{id}/call", callLiftHandler(manager))
+	mux.Handle("/socket", socketHandler(manager))
 	return mux
 }
