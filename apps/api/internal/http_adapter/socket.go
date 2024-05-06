@@ -2,8 +2,11 @@ package http_adapter
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/pubsub"
 	"log"
 	"net/http"
 )
@@ -25,7 +28,13 @@ type callLiftDto struct {
 	Type   string `json:"type"`
 }
 
-func reader(c *websocket.Conn, manager *lift.Manager) {
+func reader(c *websocket.Conn, subscriptionId uuid.UUID, manager *lift.Manager) {
+	defer func() {
+		fmt.Println("reader unsubscribing")
+		manager.Unsubscribe(subscriptionId)
+		c.Close()
+	}()
+
 	for {
 		_, message, err := c.ReadMessage()
 		if err != nil {
@@ -51,12 +60,11 @@ type initialise struct {
 	Data lift.ManagerState `json:"data"`
 }
 
-func writer(c *websocket.Conn, manager *lift.Manager) {
-	id, liftChan, err := manager.Subscribe()
-	if err != nil {
-		return
-	}
-	defer manager.Unsubscribe(id)
+func writer(c *websocket.Conn, subscriptionId uuid.UUID, ch <-chan pubsub.Message, manager *lift.Manager) {
+	defer func() {
+		manager.Unsubscribe(subscriptionId)
+		c.Close()
+	}()
 
 	// send the current floor of the lift
 	w, err := c.NextWriter(websocket.TextMessage)
@@ -75,7 +83,7 @@ func writer(c *websocket.Conn, manager *lift.Manager) {
 	}
 
 	for {
-		msg := <-liftChan
+		msg := <-ch
 		w, err := c.NextWriter(websocket.TextMessage)
 		if err != nil {
 			return
@@ -105,7 +113,14 @@ func socketHandler(manager *lift.Manager) http.Handler {
 			return
 		}
 
-		go reader(c, manager)
-		go writer(c, manager)
+		id, liftChan, err := manager.Subscribe()
+		if err != nil {
+			log.Println("error subscribing", err)
+			c.Close()
+			return
+		}
+
+		go reader(c, id, manager)
+		go writer(c, id, liftChan, manager)
 	})
 }
