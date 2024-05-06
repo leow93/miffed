@@ -5,13 +5,13 @@ export const useLiftState = (socket: WebSocket) => {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   React.useEffect(() => {
     const listener = (event: MessageEvent) => {
-        const message = JSON.parse(event.data);
-        dispatch(message);
-    }
-    socket.addEventListener('message', listener);
+      const message = JSON.parse(event.data);
+      dispatch(message);
+    };
+    socket.addEventListener("message", listener);
 
     return () => {
-      socket.removeEventListener('message', listener);
+      socket.removeEventListener("message", listener);
     };
   }, [socket]);
   return state;

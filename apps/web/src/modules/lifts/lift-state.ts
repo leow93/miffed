@@ -1,15 +1,18 @@
-export type LiftState =
+export type LiftState = {
+  currentFloor: number;
+  lowestFloor: number;
+  highestFloor: number;
+};
+
+export type State =
   | {
       type: "initial";
     }
-  | {
+  | ({
       type: "created";
-      currentFloor: number;
-      lowestFloor: number;
-      highestFloor: number;
-    };
+    } & LiftState);
 
-export const initialState: LiftState = {
+export const initialState: State = {
   type: "initial",
 };
 
@@ -49,7 +52,7 @@ export const Actions = {
 
 export type Message = LiftTransited | Initialise;
 
-export const reducer = (state: LiftState, message: Message): LiftState => {
+export const reducer = (state: State, message: Message): State => {
   if (state.type === "initial") {
     switch (message.type) {
       case "initialise_lift":
