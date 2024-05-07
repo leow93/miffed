@@ -1,6 +1,6 @@
 import { LiftState, Message, reducer as liftReducer, State } from "./lift-state.ts";
 
-type LiftsState = Record<string, State>;
+export type LiftsState = Record<string, State>;
 
 type Action =
   | {

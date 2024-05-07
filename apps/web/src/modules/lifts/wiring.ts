@@ -1,7 +1,7 @@
 import React from "react";
-import { initialState, reducer } from "./lifts-state";
+import { initialState, reducer, LiftsState } from "./lifts-state";
 
-export const useLiftState = (socket: WebSocket) => {
+export const useLiftState = (socket: WebSocket): LiftsState => {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   React.useEffect(() => {
     const listener = (event: MessageEvent) => {
