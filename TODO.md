@@ -53,12 +53,24 @@ Though certainly not exhaustive, these constraints provide enough food for thoug
 
 # Step 2: Build a client/server application
 
-TODO
+I've decided to build an application using WebSockets. The client connects to the server over a websocket connection and all communication between client and server is done over this connection.
+
+This allows for a real-time view over lifts in the UI.
+
 
 # Step 3: Extend our application to support multiple lifts
 
-TODO
+This is now done.
 
-# Step 4: Make absolutely no profit
+# Step 4: Revisit step 1 to add more functionality
+I took a small subset of the functionality outlined in Step 1 and built an application around that. What's included so far is:
+- Calling lifts
+- Moving lifts between floors in the order they were called
+
+I'd now like to look at other events that occur, such as doors opening and closing when a lift arrives at a floor.
+Further improvements will include optimising the travel path of the lift.
+
+
+# Step 5: Make absolutely no profit
 
 Already done
