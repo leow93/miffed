@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"context"
-	"fmt"
 	"github.com/google/uuid"
 	"sync"
 )
@@ -64,16 +63,6 @@ func (ps *MemoryPubSub) Publish(topic Topic, message Message) error {
 func (ps *MemoryPubSub) Subscribe(topic Topic) (uuid.UUID, <-chan Message, error) {
 	id := uuid.New()
 	ch := ps.addSubscriber(topic, id)
-
-	var subscribers []string
-	for _, s := range ps.subscribers {
-		for k := range s {
-			subscribers = append(subscribers, k.String())
-		}
-	}
-
-	fmt.Println("Subscribers", subscribers)
-
 	return id, ch, nil
 }
 

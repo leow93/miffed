@@ -23,14 +23,13 @@ var upgrader = websocket.Upgrader{
 }
 
 type callLiftDto struct {
-	LiftId string `json:"liftId"`
+	LiftId int32  `json:"liftId"`
 	Floor  int    `json:"floor"`
 	Type   string `json:"type"`
 }
 
 func reader(c *websocket.Conn, subscriptionId uuid.UUID, manager *lift.Manager) {
 	defer func() {
-		fmt.Println("reader unsubscribing")
 		manager.Unsubscribe(subscriptionId)
 		c.Close()
 	}()
@@ -43,14 +42,11 @@ func reader(c *websocket.Conn, subscriptionId uuid.UUID, manager *lift.Manager) 
 		var req callLiftDto
 		err = json.Unmarshal(message, &req)
 		if err != nil {
+			fmt.Println("error unmarshalling message", err)
 			break
 		}
 		if req.Type == "call_lift" {
-			id, e := lift.ParseId(req.LiftId)
-			if e != nil {
-				break
-			}
-			manager.CallLift(id, req.Floor)
+			manager.CallLift(req.LiftId, req.Floor)
 		}
 	}
 }

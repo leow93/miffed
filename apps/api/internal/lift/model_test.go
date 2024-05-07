@@ -153,3 +153,23 @@ func TestCallLift(t *testing.T) {
 		}
 	})
 }
+
+func TestNewId(t *testing.T) {
+	t.Run("generating an id is thread safe", func(t *testing.T) {
+		current := NewId()
+		wg := sync.WaitGroup{}
+		wg.Add(1000)
+		for i := 0; i < 1000; i++ {
+			go func() {
+				NewId()
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		id := NewId()
+		expected := current + 1001
+		if id != expected {
+			t.Errorf("Expected %d to be generated, got %d", expected, id)
+		}
+	})
+}

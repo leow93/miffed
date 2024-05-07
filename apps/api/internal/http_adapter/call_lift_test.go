@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -25,13 +26,18 @@ func initServer() (http.Handler, *lift.Lift) {
 	return server, l
 }
 
+func path(liftId lift.Id) string {
+	return "/lift/" + strconv.Itoa(int(liftId)) + "/call"
+}
+
 func TestCallLift(t *testing.T) {
 	t.Run("calling a lift", func(t *testing.T) {
 		server, l := initServer()
 
 		rec := httptest.NewRecorder()
 		b := createBody(callLiftReq{Floor: 5})
-		req := httptest.NewRequest("POST", "/lift/"+l.Id.String()+"/call", b)
+
+		req := httptest.NewRequest("POST", path(l.Id), b)
 
 		server.ServeHTTP(rec, req)
 
@@ -51,7 +57,7 @@ func TestCallLift(t *testing.T) {
 
 		rec := httptest.NewRecorder()
 		b := createBody(map[string]interface{}{"floor": "5"})
-		req := httptest.NewRequest("POST", "/lift/"+l.Id.String()+"/call", b)
+		req := httptest.NewRequest("POST", path(l.Id), b)
 
 		server.ServeHTTP(rec, req)
 

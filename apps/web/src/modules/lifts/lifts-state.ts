@@ -7,7 +7,7 @@ type Action =
       type: "initialise";
       data: Record<string, LiftState>;
     }
-  | (Message & { liftId: string });
+  | (Message & { liftId: number });
 
 export const initialState: LiftsState = {};
 

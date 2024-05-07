@@ -68,7 +68,7 @@ func TestSocket(t *testing.T) {
 		readTextMessage(t, ws) // init message
 
 		dto := callLiftDto{
-			LiftId: l.Id.String(),
+			LiftId: l.Id,
 			Floor:  5,
 			Type:   "call_lift",
 		}

@@ -2,15 +2,23 @@ package lift
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"github.com/leow93/miffed-api/internal/pubsub"
+	"strconv"
+	"sync/atomic"
 	"time"
 )
 
-type Id = uuid.UUID
+type Id = int32
+
+var count Id = 0
+
+func NewId() Id {
+	return atomic.AddInt32(&count, 1)
+}
 
 func ParseId(s string) (Id, error) {
-	return uuid.Parse(s)
+	x, err := strconv.Atoi(s)
+	return int32(x), err
 }
 
 type Lift struct {
@@ -24,18 +32,19 @@ type Lift struct {
 }
 
 type LiftState struct {
+	Id           Id  `json:"id"`
 	CurrentFloor int `json:"currentFloor"`
 	LowestFloor  int `json:"lowestFloor"`
 	HighestFloor int `json:"highestFloor"`
 }
 
 func Topic(liftId Id) pubsub.Topic {
-	return pubsub.Topic("lift:" + liftId.String())
+	return pubsub.Topic("lift:" + strconv.Itoa(int(liftId)))
 }
 
 func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, floorsPerSecond int) *Lift {
 	lift := &Lift{
-		Id:           Id(uuid.New()),
+		Id:           NewId(),
 		lowestFloor:  lowestFloor,
 		highestFloor: highestFloor,
 		currentFloor: lowestFloor,
@@ -98,6 +107,7 @@ func (l *Lift) Start(ctx context.Context) {
 
 func (l *Lift) State() LiftState {
 	return LiftState{
+		Id:           l.Id,
 		CurrentFloor: l.currentFloor,
 		LowestFloor:  l.lowestFloor,
 		HighestFloor: l.highestFloor,

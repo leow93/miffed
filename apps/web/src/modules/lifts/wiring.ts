@@ -18,7 +18,7 @@ export const useLiftState = (socket: WebSocket) => {
 };
 
 type SendMessage = {
-  liftId: string;
+  liftId: number;
   type: "call_lift";
   floor: number;
 };

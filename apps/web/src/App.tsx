@@ -43,7 +43,7 @@ function App() {
   const state = useLiftState(ws);
   const sendMessage = useSendMessage(ws);
 
-  const onCall = (liftId: string, floor: number) => {
+  const onCall = (liftId: number, floor: number) => {
     sendMessage({
       liftId,
       type: "call_lift",
@@ -66,7 +66,7 @@ function App() {
                 lowestFloor={liftState.lowestFloor}
                 highestFloor={liftState.highestFloor}
                 currentFloor={liftState.currentFloor}
-                onCall={floor => onCall(liftId, floor)}
+                onCall={floor => onCall(Number(liftId), floor)}
               />
             );
           }
