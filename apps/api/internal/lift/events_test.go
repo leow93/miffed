@@ -52,6 +52,22 @@ func TestSerialiseEvent(t *testing.T) {
 		}
 	})
 
+	t.Run("LiftDoorsOpened begets LiftMessage", func(t *testing.T) {
+		x := SerialiseEvent(LiftDoorsOpened{LiftId: 1, Floor: 3})
+		if x == nil {
+			t.Errorf("expected LiftMessage, got nil")
+		}
+		if x.Type != "lift_doors_opened" {
+			t.Errorf("expected lift_doors_opened, got %v", x.Type)
+		}
+		if x.Data.(LiftDoorsOpened).LiftId != 1 {
+			t.Errorf("expected 1, got %v", x.Data.(LiftDoorsOpened).LiftId)
+		}
+		if x.Data.(LiftDoorsOpened).Floor != 3 {
+			t.Errorf("expected 3, got %v", x.Data.(LiftDoorsOpened).Floor)
+		}
+	})
+
 	t.Run("unknown type begets nil", func(t *testing.T) {
 		x := SerialiseEvent("unknown")
 		if x != nil {

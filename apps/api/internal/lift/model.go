@@ -66,10 +66,12 @@ func (l *Lift) processFloorRequest() {
 	}
 	floor := l.requests.Dequeue()
 
-	l.transitionToFloor(floor)
+	l.moveToCalledFloor(floor)
+	l.pubsub.Publish(topic(l.Id), LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
+	l.pubsub.Publish(topic(l.Id), LiftDoorsOpened{LiftId: l.Id, Floor: l.currentFloor})
 }
 
-func (l *Lift) transitionToFloor(floor int) {
+func (l *Lift) moveToCalledFloor(floor int) {
 	var delta int
 	if l.currentFloor > floor {
 		delta = -1
@@ -79,7 +81,6 @@ func (l *Lift) transitionToFloor(floor int) {
 	for l.currentFloor != floor {
 		l.transit(delta)
 	}
-	l.pubsub.Publish(topic(l.Id), LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
 }
 
 func (l *Lift) transit(delta int) {

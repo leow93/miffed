@@ -13,6 +13,10 @@ type LiftArrived struct {
 	LiftId Id  `json:"liftId"`
 	Floor  int `json:"floor"`
 }
+type LiftDoorsOpened struct {
+	LiftId Id  `json:"liftId"`
+	Floor  int `json:"floor"`
+}
 type Event interface{}
 
 type LiftMessage struct {
@@ -40,6 +44,13 @@ func SerialiseEvent(e Event) *LiftMessage {
 			Type:   "lift_transited",
 			Data:   e,
 			LiftId: e.(LiftTransited).LiftId,
+		}
+
+	case LiftDoorsOpened:
+		return &LiftMessage{
+			Type:   "lift_doors_opened",
+			Data:   e,
+			LiftId: e.(LiftDoorsOpened).LiftId,
 		}
 	default:
 		return nil

@@ -2,11 +2,21 @@ package lift
 
 import (
 	"context"
+	"errors"
 	"github.com/leow93/miffed-api/internal/pubsub"
 	"slices"
 	"sync"
 	"testing"
+	"time"
 )
+
+// Not a realistic speed, but makes testing faster
+const floorsPerSecond = 100
+
+func createLift() *Lift {
+	ps := pubsub.NewMemoryPubSub()
+	return NewLift(ps, 0, 10, floorsPerSecond)
+}
 
 func subscribe(t *testing.T, lift *Lift) <-chan pubsub.Message {
 	_, ch, err := lift.Subscribe()
@@ -18,12 +28,8 @@ func subscribe(t *testing.T, lift *Lift) <-chan pubsub.Message {
 
 func TestCallLift(t *testing.T) {
 
-	// Not a realistic speed, but makes testing faster
-	const floorsPerSecond = 100
-
 	t.Run("calling a lift", func(t *testing.T) {
-		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, floorsPerSecond)
+		lift := createLift()
 		sub := subscribe(t, lift)
 
 		lift.Call(5)
@@ -38,8 +44,7 @@ func TestCallLift(t *testing.T) {
 	})
 
 	t.Run("calling a lift is idempotent", func(t *testing.T) {
-		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, floorsPerSecond)
+		lift := createLift()
 		sub := subscribe(t, lift)
 		called := lift.Call(5)
 		if !called {
@@ -60,8 +65,7 @@ func TestCallLift(t *testing.T) {
 	})
 
 	t.Run("notification of lift transits", func(t *testing.T) {
-		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, floorsPerSecond)
+		lift := createLift()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		lift.Start(ctx)
@@ -85,9 +89,7 @@ func TestCallLift(t *testing.T) {
 	})
 
 	t.Run("calling a lift down", func(t *testing.T) {
-
-		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, floorsPerSecond)
+		lift := createLift()
 		sub := subscribe(t, lift)
 		lift.Call(5)
 		done := make(chan bool, 1)
@@ -111,8 +113,7 @@ func TestCallLift(t *testing.T) {
 	})
 
 	t.Run("lift visits all floors called", func(t *testing.T) {
-		ps := pubsub.NewMemoryPubSub()
-		lift := NewLift(ps, 0, 10, floorsPerSecond)
+		lift := createLift()
 		sub := subscribe(t, lift)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -158,6 +159,46 @@ func TestCallLift(t *testing.T) {
 		if !slices.Contains(visitedSlice, 7) {
 			t.Errorf("Expected floor 7 to be visited")
 		}
+	})
+}
+
+func TestDoors(t *testing.T) {
+	t.Run("doors open on arrival", func(t *testing.T) {
+		lift := createLift()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		sub := subscribe(t, lift)
+		lift.Start(ctx)
+		lift.Call(1)
+
+		timer := time.After(time.Second)
+		errCh := make(chan error, 1)
+		msgCh := make(chan LiftDoorsOpened, 1)
+
+		go func() {
+			for {
+				select {
+				case <-timer:
+					errCh <- errors.New("Message not received in time")
+				case msg := <-sub:
+					switch msg.(type) {
+					case LiftDoorsOpened:
+						msgCh <- msg.(LiftDoorsOpened)
+					}
+				}
+			}
+
+		}()
+
+		for range 1 {
+			select {
+			case e := <-errCh:
+				t.Errorf("Expected message, received error: \"%s\"", e)
+			case <-msgCh:
+				// ok
+			}
+		}
+
 	})
 }
 
