@@ -53,7 +53,7 @@ func (m *Manager) Subscribe() (uuid.UUID, <-chan pubsub.Message, error) {
 
 	// pump messages from individual lift topics to the global lift topic
 	for _, l := range m.lifts {
-		liftSubId, liftChan, e := m.pubsub.Subscribe(Topic(l.Id))
+		liftSubId, liftChan, e := l.Subscribe()
 		if e != nil {
 			m.pubsub.Unsubscribe(liftSubId)
 			return id, ch, e

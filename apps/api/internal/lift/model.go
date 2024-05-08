@@ -2,6 +2,7 @@ package lift
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/leow93/miffed-api/internal/pubsub"
 	"strconv"
 	"sync/atomic"
@@ -38,7 +39,7 @@ type LiftState struct {
 	HighestFloor int `json:"highestFloor"`
 }
 
-func Topic(liftId Id) pubsub.Topic {
+func topic(liftId Id) pubsub.Topic {
 	return pubsub.Topic("lift:" + strconv.Itoa(int(liftId)))
 }
 
@@ -78,7 +79,7 @@ func (l *Lift) transitionToFloor(floor int) {
 	for l.currentFloor != floor {
 		l.transit(delta)
 	}
-	l.pubsub.Publish(Topic(l.Id), LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
+	l.pubsub.Publish(topic(l.Id), LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
 }
 
 func (l *Lift) transit(delta int) {
@@ -87,7 +88,7 @@ func (l *Lift) transit(delta int) {
 	sleepTime := time.Second / time.Duration(l.speed)
 	time.Sleep(sleepTime)
 	l.currentFloor = l.currentFloor + delta
-	l.pubsub.Publish(Topic(l.Id), LiftTransited{LiftId: l.Id, From: curr, To: l.currentFloor})
+	l.pubsub.Publish(topic(l.Id), LiftTransited{LiftId: l.Id, From: curr, To: l.currentFloor})
 }
 
 // Start
@@ -114,10 +115,18 @@ func (l *Lift) State() LiftState {
 	}
 }
 
+func (l *Lift) Subscribe() (uuid.UUID, <-chan pubsub.Message, error) {
+	return l.pubsub.Subscribe(topic(l.Id))
+}
+
+func (l *Lift) Unsubscribe(id uuid.UUID) {
+	l.pubsub.Unsubscribe(id)
+}
+
 func (l *Lift) Call(floor int) bool {
 	enqueued := l.enqueue(floor)
 	if enqueued {
-		l.pubsub.Publish(Topic(l.Id), LiftCalled{LiftId: l.Id, Floor: floor})
+		l.pubsub.Publish(topic(l.Id), LiftCalled{LiftId: l.Id, Floor: floor})
 	}
 	return enqueued
 }

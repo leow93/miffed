@@ -8,6 +8,14 @@ import (
 	"testing"
 )
 
+func subscribe(t *testing.T, lift *Lift) <-chan pubsub.Message {
+	_, ch, err := lift.Subscribe()
+	if err != nil {
+		t.Errorf("Error subscribing to lift %e", err)
+	}
+	return ch
+}
+
 func TestCallLift(t *testing.T) {
 
 	// Not a realistic speed, but makes testing faster
@@ -16,7 +24,7 @@ func TestCallLift(t *testing.T) {
 	t.Run("calling a lift", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		lift := NewLift(ps, 0, 10, floorsPerSecond)
-		_, sub, _ := ps.Subscribe(Topic(lift.Id))
+		sub := subscribe(t, lift)
 
 		lift.Call(5)
 		ev := <-sub
@@ -32,8 +40,7 @@ func TestCallLift(t *testing.T) {
 	t.Run("calling a lift is idempotent", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		lift := NewLift(ps, 0, 10, floorsPerSecond)
-		_, sub, _ := ps.Subscribe(Topic(lift.Id))
-
+		sub := subscribe(t, lift)
 		called := lift.Call(5)
 		if !called {
 			t.Errorf("Expected lift to be called")
@@ -58,7 +65,7 @@ func TestCallLift(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		lift.Start(ctx)
-		_, sub, _ := ps.Subscribe(Topic(lift.Id))
+		sub := subscribe(t, lift)
 		lift.Call(2)
 		expectedEvents := []Event{
 			LiftCalled{LiftId: lift.Id, Floor: 2},
@@ -81,7 +88,7 @@ func TestCallLift(t *testing.T) {
 
 		ps := pubsub.NewMemoryPubSub()
 		lift := NewLift(ps, 0, 10, floorsPerSecond)
-		_, sub, _ := ps.Subscribe(Topic(lift.Id))
+		sub := subscribe(t, lift)
 		lift.Call(5)
 		done := make(chan bool, 1)
 		ctx, cancel := context.WithCancel(context.Background())
@@ -106,7 +113,7 @@ func TestCallLift(t *testing.T) {
 	t.Run("lift visits all floors called", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		lift := NewLift(ps, 0, 10, floorsPerSecond)
-		_, sub, _ := ps.Subscribe(Topic(lift.Id))
+		sub := subscribe(t, lift)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		lift.Start(ctx)
