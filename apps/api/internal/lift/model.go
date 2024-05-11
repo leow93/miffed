@@ -71,10 +71,10 @@ func (l *Lift) enqueue(floor int) bool {
 }
 
 func (l *Lift) processFloorRequest() {
-	if l.requests.Length() == 0 {
+	floor, err := l.requests.Dequeue()
+	if err != nil {
 		return
 	}
-	floor := l.requests.Dequeue()
 
 	l.moveToCalledFloor(floor)
 	l.publish(LiftArrived{LiftId: l.Id, Floor: l.currentFloor})

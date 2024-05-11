@@ -1,6 +1,7 @@
 package lift
 
 import (
+	"errors"
 	"slices"
 	"sync"
 )
@@ -8,6 +9,10 @@ import (
 type Queue struct {
 	queue []int
 	mutex sync.Mutex
+}
+
+func emptyQueue() error {
+	return errors.New("queue is empty")
 }
 
 func NewQueue() *Queue {
@@ -22,16 +27,16 @@ func (q *Queue) Enqueue(floor int) bool {
 	q.queue = append(q.queue, floor)
 	return true
 }
-func (q *Queue) Dequeue() int {
+func (q *Queue) Dequeue() (int, error) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 	if len(q.queue) == 0 {
 		// FIXME: assumes no negative floors
-		return -1
+		return 0, errors.New("queue is empty")
 	}
 	floor := q.queue[0]
 	q.queue = q.queue[1:]
-	return floor
+	return floor, nil
 }
 func (q *Queue) Length() int {
 	q.mutex.Lock()
