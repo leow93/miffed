@@ -20,7 +20,7 @@ func createBody[T any](body T) io.Reader {
 func initServer() (http.Handler, *lift.Lift) {
 	ps := pubsub.NewMemoryPubSub()
 	m := lift.NewManager(ps)
-	l := lift.NewLift(ps, 0, 10, 1)
+	l := lift.NewLift(ps, lift.NewLiftOpts{0, 10, 0, 100, 1})
 	m.AddLift(l)
 	server := NewServer(m)
 	return server, l

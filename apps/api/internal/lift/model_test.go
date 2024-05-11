@@ -15,7 +15,7 @@ const floorsPerSecond = 100
 
 func createLift() *Lift {
 	ps := pubsub.NewMemoryPubSub()
-	return NewLift(ps, 0, 10, floorsPerSecond)
+	return NewLift(ps, NewLiftOpts{0, 10, 0, floorsPerSecond, 1})
 }
 
 func subscribe(t *testing.T, lift *Lift) <-chan pubsub.Message {

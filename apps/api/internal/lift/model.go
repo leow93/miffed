@@ -44,14 +44,22 @@ func topic(liftId Id) pubsub.Topic {
 	return pubsub.Topic("lift:" + strconv.Itoa(int(liftId)))
 }
 
-func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, floorsPerSecond int) *Lift {
+type NewLiftOpts struct {
+	LowestFloor     int
+	HighestFloor    int
+	CurrentFloor    int
+	FloorsPerSecond int
+	DoorCloseWaitMs int
+}
+
+func NewLift(ps pubsub.PubSub, opts NewLiftOpts) *Lift {
 	lift := &Lift{
 		Id:              NewId(),
-		lowestFloor:     lowestFloor,
-		highestFloor:    highestFloor,
-		currentFloor:    lowestFloor,
-		floorsPerSecond: floorsPerSecond,
-		doorCloseWaitMs: 3000,
+		lowestFloor:     opts.LowestFloor,
+		highestFloor:    opts.HighestFloor,
+		currentFloor:    opts.CurrentFloor,
+		floorsPerSecond: opts.FloorsPerSecond,
+		doorCloseWaitMs: opts.DoorCloseWaitMs,
 		requests:        NewQueue(),
 		pubsub:          ps,
 	}

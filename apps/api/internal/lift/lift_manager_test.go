@@ -9,7 +9,7 @@ import (
 )
 
 func makeLift(ps pubsub.PubSub) *Lift {
-	return NewLift(ps, 0, 10, 1)
+	return NewLift(ps, NewLiftOpts{0, 10, 0, 100, 1})
 }
 
 func ensureSubscribe(t *testing.T, manager *Manager) (uuid.UUID, <-chan pubsub.Message) {
@@ -123,8 +123,8 @@ func TestManager(t *testing.T) {
 	t.Run("getting state", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		m := NewManager(ps)
-		l1 := NewLift(ps, 0, 10, 1)
-		l2 := NewLift(ps, 10, 40, 3)
+		l1 := NewLift(ps, NewLiftOpts{0, 10, 0, 100, 1})
+		l2 := NewLift(ps, NewLiftOpts{10, 40, 10, 100, 1})
 		m.AddLift(l1)
 		m.AddLift(l2)
 		state := m.State()
