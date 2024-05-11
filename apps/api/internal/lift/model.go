@@ -51,7 +51,7 @@ func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, floorsPerSecond int) *
 		highestFloor:    highestFloor,
 		currentFloor:    lowestFloor,
 		floorsPerSecond: floorsPerSecond,
-		doorCloseWaitMs: 1,
+		doorCloseWaitMs: 3000,
 		requests:        NewQueue(),
 		pubsub:          ps,
 	}

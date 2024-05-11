@@ -2,6 +2,7 @@ export type LiftState = {
   currentFloor: number;
   lowestFloor: number;
   highestFloor: number;
+  doorsOpen: boolean;
 };
 
 export type State =
@@ -45,12 +46,27 @@ const initialise = (floor: number, lowestFloor: number, highestFloor: number): I
   },
 });
 
+type DoorsOpened = {
+  type: "lift_doors_opened";
+};
+const doorsOpened = (): DoorsOpened => ({
+  type: "lift_doors_opened",
+});
+type DoorsClosed = {
+  type: "lift_doors_closed";
+};
+const doorsClosed = (): DoorsClosed => ({
+  type: "lift_doors_closed",
+});
+
 export const Actions = {
   liftTransited,
   initialise,
+  doorsOpened,
+  doorsClosed,
 };
 
-export type Message = LiftTransited | Initialise;
+export type Message = LiftTransited | Initialise | DoorsOpened | DoorsClosed;
 
 export const reducer = (state: State, message: Message): State => {
   if (state.type === "initial") {
@@ -61,6 +77,7 @@ export const reducer = (state: State, message: Message): State => {
           currentFloor: message.data.floor,
           lowestFloor: message.data.lowestFloor,
           highestFloor: message.data.highestFloor,
+          doorsOpen: false,
         };
       default:
         return state;
@@ -74,6 +91,24 @@ export const reducer = (state: State, message: Message): State => {
         currentFloor: message.data.to,
         lowestFloor: state.lowestFloor,
         highestFloor: state.highestFloor,
+        doorsOpen: state.doorsOpen,
+      };
+
+    case "lift_doors_opened":
+      return {
+        type: "created",
+        currentFloor: state.currentFloor,
+        lowestFloor: state.lowestFloor,
+        highestFloor: state.highestFloor,
+        doorsOpen: true,
+      };
+    case "lift_doors_closed":
+      return {
+        type: "created",
+        currentFloor: state.currentFloor,
+        lowestFloor: state.lowestFloor,
+        highestFloor: state.highestFloor,
+        doorsOpen: false,
       };
     default:
       return state;
