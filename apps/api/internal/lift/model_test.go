@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Not a realistic speed, but makes testing faster
+// Not a realistic floorsPerSecond, but makes testing faster
 const floorsPerSecond = 100
 
 func createLift() *Lift {
@@ -79,6 +79,7 @@ func TestCallLift(t *testing.T) {
 		}
 		for _, expected := range expectedEvents {
 			ev := <-sub
+
 			if ev != expected {
 				t.Errorf("Expected %v, got %v", expected, ev)
 			}
@@ -197,6 +198,49 @@ func TestDoors(t *testing.T) {
 			case <-msgCh:
 				// ok
 			}
+		}
+	})
+
+	t.Run("doors close after opening", func(t *testing.T) {
+		lift := createLift()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		sub := subscribe(t, lift)
+		lift.Start(ctx)
+		lift.Call(1)
+
+		ticker := time.NewTicker(time.Millisecond * 50)
+		errCh := make(chan error, 1)
+		msgCh := make(chan pubsub.Message, 2)
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					errCh <- errors.New("message not received in time")
+					wg.Done()
+				case msg := <-sub:
+					switch msg.(type) {
+					case LiftDoorsOpened:
+						msgCh <- msg
+						wg.Done()
+					case LiftDoorsClosed:
+						msgCh <- msg
+						wg.Done()
+					}
+				}
+			}
+		}()
+
+		wg.Wait()
+		<-msgCh
+		closed := <-msgCh
+		switch closed.(type) {
+		case LiftDoorsClosed:
+		// ok
+		default:
+			t.Errorf("Received wrong message")
 		}
 
 	})

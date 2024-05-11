@@ -68,10 +68,29 @@ func TestSerialiseEvent(t *testing.T) {
 		}
 	})
 
-	t.Run("unknown type begets nil", func(t *testing.T) {
-		x := SerialiseEvent("unknown")
-		if x != nil {
-			t.Errorf("expected nil, got %v", x)
+	t.Run("LiftDoorsClosed begets LiftMessage", func(t *testing.T) {
+		x := SerialiseEvent(LiftDoorsClosed{LiftId: 1, Floor: 3})
+		if x == nil {
+			t.Errorf("expected LiftMessage, got nil")
+		}
+		if x.Type != "lift_doors_closed" {
+			t.Errorf("expected lift_doors_closed, got %v", x.Type)
+		}
+		if x.Data.(LiftDoorsClosed).LiftId != 1 {
+			t.Errorf("expected 1, got %v", x.Data.(LiftDoorsClosed).LiftId)
+		}
+		if x.Data.(LiftDoorsClosed).Floor != 3 {
+			t.Errorf("expected 3, got %v", x.Data.(LiftDoorsClosed).Floor)
 		}
 	})
+
+	tests := []struct{ data any }{{data: "unknown"}, {data: map[string]string{"test": "test"}}}
+	for _, test := range tests {
+		t.Run("unknown type begets nil", func(t *testing.T) {
+			x := SerialiseEvent(test.data)
+			if x != nil {
+				t.Errorf("expected nil, got %v", x)
+			}
+		})
+	}
 }

@@ -114,11 +114,11 @@ func TestMemoryPubSub(t *testing.T) {
 				time.Sleep(time.Millisecond)
 			}
 		}()
-		// Unsubscribe after 1 second
+		// Unsubscribe after 100ms
 		go func() {
-			<-time.After(1 * time.Second)
+			<-time.After(100 * time.Millisecond)
 			pubsub.Unsubscribe(id)
 		}()
-		<-time.After(1500 * time.Millisecond)
+		<-time.After(200 * time.Millisecond)
 	})
 }

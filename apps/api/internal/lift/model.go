@@ -23,13 +23,14 @@ func ParseId(s string) (Id, error) {
 }
 
 type Lift struct {
-	Id           Id
-	lowestFloor  int
-	highestFloor int
-	currentFloor int
-	speed        int    // queue per second
-	requests     *Queue // queue to visit
-	pubsub       pubsub.PubSub
+	Id              Id
+	lowestFloor     int
+	highestFloor    int
+	currentFloor    int
+	floorsPerSecond int // queue per second
+	doorCloseWaitMs int
+	requests        *Queue // queue to visit
+	pubsub          pubsub.PubSub
 }
 
 type LiftState struct {
@@ -45,13 +46,14 @@ func topic(liftId Id) pubsub.Topic {
 
 func NewLift(ps pubsub.PubSub, lowestFloor, highestFloor, floorsPerSecond int) *Lift {
 	lift := &Lift{
-		Id:           NewId(),
-		lowestFloor:  lowestFloor,
-		highestFloor: highestFloor,
-		currentFloor: lowestFloor,
-		speed:        floorsPerSecond,
-		requests:     NewQueue(),
-		pubsub:       ps,
+		Id:              NewId(),
+		lowestFloor:     lowestFloor,
+		highestFloor:    highestFloor,
+		currentFloor:    lowestFloor,
+		floorsPerSecond: floorsPerSecond,
+		doorCloseWaitMs: 1,
+		requests:        NewQueue(),
+		pubsub:          ps,
 	}
 	return lift
 }
@@ -67,8 +69,10 @@ func (l *Lift) processFloorRequest() {
 	floor := l.requests.Dequeue()
 
 	l.moveToCalledFloor(floor)
-	l.pubsub.Publish(topic(l.Id), LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
-	l.pubsub.Publish(topic(l.Id), LiftDoorsOpened{LiftId: l.Id, Floor: l.currentFloor})
+	l.publish(LiftArrived{LiftId: l.Id, Floor: l.currentFloor})
+	l.publish(LiftDoorsOpened{LiftId: l.Id, Floor: l.currentFloor})
+	time.Sleep(time.Duration(l.doorCloseWaitMs) * time.Millisecond)
+	l.publish(LiftDoorsClosed{LiftId: l.Id, Floor: l.currentFloor})
 }
 
 func (l *Lift) moveToCalledFloor(floor int) {
@@ -85,11 +89,11 @@ func (l *Lift) moveToCalledFloor(floor int) {
 
 func (l *Lift) transit(delta int) {
 	curr := l.currentFloor
-	// sleep for speed
-	sleepTime := time.Second / time.Duration(l.speed)
+	// sleep for floorsPerSecond
+	sleepTime := time.Second / time.Duration(l.floorsPerSecond)
 	time.Sleep(sleepTime)
 	l.currentFloor = l.currentFloor + delta
-	l.pubsub.Publish(topic(l.Id), LiftTransited{LiftId: l.Id, From: curr, To: l.currentFloor})
+	l.publish(LiftTransited{LiftId: l.Id, From: curr, To: l.currentFloor})
 }
 
 // Start
@@ -114,6 +118,10 @@ func (l *Lift) State() LiftState {
 		LowestFloor:  l.lowestFloor,
 		HighestFloor: l.highestFloor,
 	}
+}
+
+func (l *Lift) publish(event pubsub.Message) {
+	l.pubsub.Publish(topic(l.Id), event)
 }
 
 func (l *Lift) Subscribe() (uuid.UUID, <-chan pubsub.Message, error) {
