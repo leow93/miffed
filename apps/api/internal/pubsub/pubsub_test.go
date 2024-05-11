@@ -68,6 +68,24 @@ func TestMemoryPubSub(t *testing.T) {
 		}
 	})
 
+	t.Run("susbcriptions receive messages in order", func(t *testing.T) {
+		pubsub := NewMemoryPubSub()
+		_, subscription1, _ := pubsub.Subscribe("foo")
+		pubsub.Publish("foo", "hello")
+		pubsub.Publish("foo", "darkness")
+		pubsub.Publish("foo", "my")
+		pubsub.Publish("foo", "old")
+		pubsub.Publish("foo", "friend")
+
+		expected := []string{"hello", "darkness", "my", "old", "friend"}
+		for _, want := range expected {
+			message := <-subscription1
+			if message != want {
+				t.Errorf("got message %v, want %v", message, want)
+			}
+		}
+	})
+
 	t.Run("unsubscribing", func(t *testing.T) {
 		pubsub := NewMemoryPubSub()
 		id, subscription1, _ := pubsub.Subscribe("foo")

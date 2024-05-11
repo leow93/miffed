@@ -19,7 +19,6 @@ type subscriber struct {
 	ch     chan Message
 	ctx    context.Context
 	cancel context.CancelFunc
-	once   sync.Once
 }
 
 type MemoryPubSub struct {
@@ -40,7 +39,6 @@ func (ps *MemoryPubSub) addSubscriber(topic Topic, id uuid.UUID) <-chan Message 
 		ch:     ch,
 		ctx:    ctx,
 		cancel: cncl,
-		once:   sync.Once{},
 	}
 	return ch
 }
@@ -48,15 +46,22 @@ func (ps *MemoryPubSub) addSubscriber(topic Topic, id uuid.UUID) <-chan Message 
 func (ps *MemoryPubSub) Publish(topic Topic, message Message) error {
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
+	wg := sync.WaitGroup{}
+	wg.Add(len(ps.subscribers[topic]))
+
 	for _, s := range ps.subscribers[topic] {
 		go func(s subscriber) {
 			select {
 			case <-s.ctx.Done():
+				wg.Done()
 				return
-			case s.ch <- message:
+			default:
+				wg.Done()
+				s.ch <- message
 			}
 		}(s)
 	}
+	wg.Wait()
 	return nil
 }
 
