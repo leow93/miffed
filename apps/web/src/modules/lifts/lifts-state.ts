@@ -20,6 +20,7 @@ export const reducer = (state: LiftsState, action: Action): LiftsState => {
         currentFloor: data.currentFloor,
         lowestFloor: data.lowestFloor,
         highestFloor: data.highestFloor,
+        doorsOpen: data.doorsOpen,
       };
       return acc;
     }, {} as LiftsState);
