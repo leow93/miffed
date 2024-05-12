@@ -35,7 +35,7 @@ func TestSocket(t *testing.T) {
 	t.Run("establishing a connection", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		m := lift.NewManager(ps)
-		l := lift.NewLift(ps, lift.NewLiftOpts{0, 10, 0, 100, 1})
+		l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 		m.AddLift(l)
 
 		server := httptest.NewServer(NewServer(m))
@@ -58,7 +58,7 @@ func TestSocket(t *testing.T) {
 	t.Run("sending messages", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		m := lift.NewManager(ps)
-		l := lift.NewLift(ps, lift.NewLiftOpts{0, 10, 0, 100, 1})
+		l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 		m.AddLift(l)
 		server := httptest.NewServer(NewServer(m))
 		defer server.Close()
