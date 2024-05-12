@@ -209,7 +209,7 @@ func TestDoors(t *testing.T) {
 		lift.Start(ctx)
 		lift.Call(1)
 
-		ticker := time.NewTicker(time.Millisecond * 50)
+		ticker := time.NewTicker(50 * time.Millisecond)
 		errCh := make(chan error, 1)
 		msgCh := make(chan pubsub.Message, 2)
 		wg := sync.WaitGroup{}
@@ -219,7 +219,7 @@ func TestDoors(t *testing.T) {
 				select {
 				case <-ticker.C:
 					errCh <- errors.New("message not received in time")
-					wg.Done()
+					break
 				case msg := <-sub:
 					switch msg.(type) {
 					case LiftDoorsOpened:
