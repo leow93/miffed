@@ -1,7 +1,7 @@
-import {useMemo} from "react";
+import { useMemo } from "react";
 import "./App.css";
-import {socket} from "./modules/socket";
-import {useLiftState, useSendMessage} from "./modules/lifts/wiring";
+import { socket } from "./modules/socket";
+import { useLiftState, useSendMessage } from "./modules/lifts/wiring";
 
 type LiftProps = {
   lowestFloor: number;
@@ -18,13 +18,13 @@ const classNames = (liftAtFloor: boolean, doorsOpen: boolean) => {
   }
 
   return liftAtFloor ? base + " bg-blue" : base;
-}
+};
 
 function Lift(props: LiftProps) {
   const arr = useMemo(
     () =>
       Array.from(
-        {length: props.highestFloor - props.lowestFloor + 1},
+        { length: props.highestFloor - props.lowestFloor + 1 },
         (_, i) => props.highestFloor - i,
       ),
     [props.lowestFloor, props.highestFloor],
@@ -42,7 +42,7 @@ function Lift(props: LiftProps) {
           >
             {floor}
           </button>
-        )
+        );
       })}
     </div>
   );
