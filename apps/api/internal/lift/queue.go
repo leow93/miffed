@@ -6,13 +6,15 @@ import (
 	"sync"
 )
 
+type Q interface {
+	Enqueue(floor int) bool
+	Dequeue() (int, error)
+	Length() int
+}
+
 type Queue struct {
 	queue []int
 	mutex sync.Mutex
-}
-
-func emptyQueue() error {
-	return errors.New("queue is empty")
 }
 
 func NewQueue() *Queue {
@@ -42,4 +44,9 @@ func (q *Queue) Length() int {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 	return len(q.queue)
+}
+
+type PriorityQueue struct {
+	queue []int
+	mutex sync.Mutex
 }

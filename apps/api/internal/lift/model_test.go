@@ -265,3 +265,87 @@ func TestNewId(t *testing.T) {
 		}
 	})
 }
+
+func TestMotionMode(t *testing.T) {
+	t.Run("FirstComeFirstServe mode", func(t *testing.T) {
+		lift := createLift()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		lift.Start(ctx)
+		sub := subscribe(t, lift)
+		lift.Call(5)
+		lift.Call(3)
+
+		arrivals := make(chan LiftArrived, 2)
+
+		go func() {
+			for {
+				ev := <-sub
+				switch ev.(type) {
+				case LiftArrived:
+					arrivals <- ev.(LiftArrived)
+				}
+			}
+		}()
+		expectedArrivals := []Event{
+			LiftArrived{LiftId: lift.Id, Floor: 5},
+			LiftArrived{LiftId: lift.Id, Floor: 3},
+		}
+		for _, expected := range expectedArrivals {
+			ev := <-arrivals
+			if ev != expected {
+				t.Errorf("Expected %v, got %v", expected, ev)
+			}
+		}
+	})
+	t.Run("generating an id is thread safe", func(t *testing.T) {
+		current := NewId()
+		wg := sync.WaitGroup{}
+		wg.Add(1000)
+		for i := 0; i < 1000; i++ {
+			go func() {
+				NewId()
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		id := NewId()
+		expected := current + 1001
+		if id != expected {
+			t.Errorf("Expected %d to be generated, got %d", expected, id)
+		}
+	})
+
+	t.Run("NearestFirst mode", func(t *testing.T) {
+		lift := createLift()
+		lift.motionMode = NearestFirst
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		lift.Start(ctx)
+		sub := subscribe(t, lift)
+		lift.Call(5)
+		lift.Call(3)
+
+		arrivals := make(chan LiftArrived, 2)
+
+		go func() {
+			for {
+				ev := <-sub
+				switch ev.(type) {
+				case LiftArrived:
+					arrivals <- ev.(LiftArrived)
+				}
+			}
+		}()
+		expectedArrivals := []Event{
+			LiftArrived{LiftId: lift.Id, Floor: 3},
+			LiftArrived{LiftId: lift.Id, Floor: 5},
+		}
+		for _, expected := range expectedArrivals {
+			ev := <-arrivals
+			if ev != expected {
+				t.Errorf("Expected %v, got %v", expected, ev)
+			}
+		}
+	})
+}

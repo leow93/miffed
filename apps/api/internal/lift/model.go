@@ -22,6 +22,13 @@ func ParseId(s string) (Id, error) {
 	return int32(x), err
 }
 
+type MotionMode int
+
+const (
+	FirstComeFirstServe MotionMode = iota
+	NearestFirst        MotionMode = iota
+)
+
 type Lift struct {
 	Id              Id
 	lowestFloor     int
@@ -31,6 +38,7 @@ type Lift struct {
 	doorCloseWaitMs int
 	requests        *Queue // queue to visit
 	pubsub          pubsub.PubSub
+	motionMode      MotionMode // defaults to FirstComeFirstServe
 }
 
 type LiftState struct {
@@ -107,6 +115,9 @@ func (l *Lift) transit(delta int) {
 // Start
 // Gets the lift to listen for calls
 func (l *Lift) Start(ctx context.Context) {
+	// Start listening to calls from the topic here too.
+	// That way we can control efficiency of lift motion.
+
 	go func() {
 		for {
 			select {
