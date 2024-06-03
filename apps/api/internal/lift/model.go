@@ -2,11 +2,12 @@ package lift
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 type Id = int32
@@ -30,15 +31,15 @@ const (
 )
 
 type Lift struct {
+	requests        *Queue // queue to visit
+	pubsub          pubsub.PubSub
+	motionMode      MotionMode // defaults to FirstComeFirstServe
 	Id              Id
 	lowestFloor     int
 	highestFloor    int
 	currentFloor    int
 	floorsPerSecond int // queue per second
 	doorCloseWaitMs int
-	requests        *Queue // queue to visit
-	pubsub          pubsub.PubSub
-	motionMode      MotionMode // defaults to FirstComeFirstServe
 }
 
 type LiftState struct {

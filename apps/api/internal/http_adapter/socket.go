@@ -3,12 +3,13 @@ package http_adapter
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
-	"log"
-	"net/http"
 )
 
 var upgrader = websocket.Upgrader{
@@ -23,9 +24,9 @@ var upgrader = websocket.Upgrader{
 }
 
 type callLiftDto struct {
+	Type   string `json:"type"`
 	LiftId int32  `json:"liftId"`
 	Floor  int    `json:"floor"`
-	Type   string `json:"type"`
 }
 
 func reader(c *websocket.Conn, subscriptionId uuid.UUID, manager *lift.Manager) {
@@ -52,8 +53,8 @@ func reader(c *websocket.Conn, subscriptionId uuid.UUID, manager *lift.Manager) 
 }
 
 type initialise struct {
-	Type string            `json:"type"`
 	Data lift.ManagerState `json:"data"`
+	Type string            `json:"type"`
 }
 
 func writer(c *websocket.Conn, subscriptionId uuid.UUID, ch <-chan pubsub.Message, manager *lift.Manager) {
