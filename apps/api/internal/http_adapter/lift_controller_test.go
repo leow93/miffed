@@ -74,10 +74,24 @@ func TestCallLift(t *testing.T) {
 }
 
 func TestAddLift(t *testing.T) {
-	t.Run("adding a lift", func(t *testing.T) {
+	t.Run("bad data gives a bad request", func(t *testing.T) {
 		server, _ := initServer()
 		rec := httptest.NewRecorder()
 		b := createBody(struct{}{})
+		req := httptest.NewRequest("POST", "/lift", b)
+
+		server.ServeHTTP(rec, req)
+
+		result := rec.Result()
+		if result.StatusCode != 400 {
+			t.Errorf("expected status 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("it adds a new lift", func(t *testing.T) {
+		server, _ := initServer()
+		rec := httptest.NewRecorder()
+		b := createBody(map[string]any{"lowest_floor": 0, "highest_floor": 5, "current_floor": 1, "floors_per_second": 1, "door_close_wait_ms": 3000})
 		req := httptest.NewRequest("POST", "/lift", b)
 
 		server.ServeHTTP(rec, req)
