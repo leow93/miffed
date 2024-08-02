@@ -2,8 +2,9 @@ package http_adapter
 
 import (
 	"encoding/json"
-	"github.com/leow93/miffed-api/internal/lift"
 	"net/http"
+
+	"github.com/leow93/miffed-api/internal/lift"
 )
 
 type callLiftReq struct {
@@ -36,5 +37,15 @@ func callLiftHandler(manager *lift.Manager) http.Handler {
 			status = http.StatusOK
 		}
 		okResponse(w, status, callLiftRes{floor})
+	})
+}
+
+type addLiftReq struct{}
+
+type addLiftRes struct{}
+
+func addLiftHandler(manager *lift.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		okResponse(w, 201, addLiftRes{})
 	})
 }

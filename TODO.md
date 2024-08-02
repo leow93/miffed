@@ -30,7 +30,7 @@ internal mechanics of a lift, but we do need to consider the following:
   of time to move between floors, determined by the speed of the lift and the distance between floors.
 - A lift's doors must not open between floors. This would pose all kinds of safety risks, so we'll assume that the lift
   can only open its doors when it is at a floor. For now, we'll also assume that doors open and close instantaneously.
-  Obviously this is an impossibility that nature would resolve in the formation of a black hole, but we'll ignore such trivialities 
+  Obviously this is an impossibility that nature would resolve in the formation of a black hole, but we'll ignore such trivialities
   for now.
 - A lift may refuse to operate if it is overloaded. We'll assume that the lift has a maximum weight capacity, and that
   it will refuse to move if the weight of the passengers exceeds this capacity.
@@ -57,20 +57,24 @@ I've decided to build an application using WebSockets. The client connects to th
 
 This allows for a real-time view over lifts in the UI.
 
-
 # Step 3: Extend our application to support multiple lifts
 
 This is now done.
 
 # Step 4: Revisit step 1 to add more functionality
+
 I took a small subset of the functionality outlined in Step 1 and built an application around that. What's included so far is:
+
 - Calling lifts
 - Moving lifts between floors in the order they were called
 
 I'd now like to look at other events that occur, such as doors opening and closing when a lift arrives at a floor.
 Further improvements will include optimising the travel path of the lift.
 
-
 # Step 5: Make absolutely no profit
 
 Already done
+
+Notes:
+
+1. Need to decouple the pubsub from the lift.

@@ -2,14 +2,15 @@ package http_adapter
 
 import (
 	"encoding/json"
-	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func createBody[T any](body T) io.Reader {
@@ -69,6 +70,22 @@ func TestCallLift(t *testing.T) {
 		json.NewDecoder(result.Body).Decode(&res)
 		if res.Code != 400 {
 			t.Errorf("expected code 400, got %d", res.Code)
+		}
+	})
+}
+
+func TestAddLift(t *testing.T) {
+	t.Run("adding a lift", func(t *testing.T) {
+		server, _ := initServer()
+		rec := httptest.NewRecorder()
+		b := createBody(struct{}{})
+		req := httptest.NewRequest("POST", "/lift", b)
+
+		server.ServeHTTP(rec, req)
+
+		result := rec.Result()
+		if result.StatusCode != 201 {
+			t.Errorf("expected status 201, got %d", rec.Code)
 		}
 	})
 }
