@@ -96,6 +96,47 @@ func TestManager(t *testing.T) {
 		}
 	})
 
+	t.Run("adding a lift includes its events in subscriptions", func(t *testing.T) {
+		ps := pubsub.NewMemoryPubSub()
+		m := NewManager(ps)
+		id, ch := ensureSubscribe(t, m)
+		defer func() {
+			m.Unsubscribe(id)
+		}()
+
+		l := m.AddLift(NewLiftOpts{
+			LowestFloor:     0,
+			HighestFloor:    10,
+			CurrentFloor:    5,
+			FloorsPerSecond: 5,
+			DoorCloseWaitMs: 1,
+		})
+		m.CallLift(l.Id, 4)
+
+		called := make(chan int, 2)
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case msg := <-ch:
+					switch msg.(type) {
+					case LiftCalled:
+						called <- msg.(LiftCalled).Floor
+						wg.Done()
+					}
+				case <-time.After(1 * time.Second):
+					t.Error("expected to receive lift call")
+				}
+			}
+		}()
+		wg.Wait()
+		floor := <-called
+		if floor != 4 {
+			t.Errorf("expected lift to be called to floor %d, got %d", 4, floor)
+		}
+	})
+
 	t.Run("unsubscribe", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		m := NewManager(ps)

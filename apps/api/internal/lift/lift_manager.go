@@ -32,7 +32,6 @@ func (m *Manager) AddLift(opts NewLiftOpts) *Lift {
 	return lift
 }
 
-// todo: func(m *Manager) StartLift(id Id) {}
 func (m *Manager) GetLift(id Id) *Lift {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()

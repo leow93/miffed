@@ -1,5 +1,13 @@
 package lift
 
+type LiftAdded struct {
+	LiftId Id `json:"liftId"`
+	Lift   *Lift
+}
+type LiftDeleted struct {
+	LiftId Id `json:"liftId"`
+}
+
 type LiftCalled struct {
 	LiftId Id  `json:"liftId"`
 	Floor  int `json:"floor"`
@@ -60,6 +68,18 @@ func SerialiseEvent(e Event) *LiftMessage {
 		return &LiftMessage{
 			LiftId: e.(LiftDoorsClosed).LiftId,
 			Type:   "lift_doors_closed",
+			Data:   e,
+		}
+	case LiftAdded:
+		return &LiftMessage{
+			LiftId: e.(LiftAdded).LiftId,
+			Type:   "lift_added",
+			Data:   e,
+		}
+	case LiftDeleted:
+		return &LiftMessage{
+			LiftId: e.(LiftDeleted).LiftId,
+			Type:   "lift_deleted",
 			Data:   e,
 		}
 	default:

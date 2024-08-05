@@ -149,7 +149,7 @@ func (l *Lift) Unsubscribe(id uuid.UUID) {
 func (l *Lift) Call(floor int) bool {
 	enqueued := l.enqueue(floor)
 	if enqueued {
-		l.pubsub.Publish(topic(l.Id), LiftCalled{LiftId: l.Id, Floor: floor})
+		l.publish(LiftCalled{LiftId: l.Id, Floor: floor})
 	}
 	return enqueued
 }

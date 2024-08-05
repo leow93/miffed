@@ -2,12 +2,15 @@ package pubsub
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
-type Message interface{}
-type Topic string
+type (
+	Message interface{}
+	Topic   string
+)
 
 type PubSub interface {
 	Publish(topic Topic, message Message) error
@@ -56,8 +59,8 @@ func (ps *MemoryPubSub) Publish(topic Topic, message Message) error {
 				wg.Done()
 				return
 			default:
-				wg.Done()
 				s.ch <- message
+				wg.Done()
 			}
 		}(s)
 	}
