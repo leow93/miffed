@@ -4,20 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/leow93/miffed-api/internal/pubsub"
 )
-
-func incrementlog(name string) func() {
-	var count Id = 0
-	return func() {
-		atomic.AddInt32(&count, 1)
-		fmt.Printf("\n%s: %d\n", name, count)
-	}
-}
 
 func TestAggregator(t *testing.T) {
 	testLiftOpts := NewLiftOpts{
@@ -115,5 +106,86 @@ func TestAggregator(t *testing.T) {
 		}
 	})
 
-	// TODO: test what happens when ctx is cancelled
+	t.Run("adding a new lift to the aggregator", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ps := pubsub.NewMemoryPubSub()
+		repo := NewLiftRepo(ps)
+		sinkChan := make(chan LiftMessage)
+		errChan := make(chan error)
+		NewAggregator(ctx, ps, repo, sinkChan, errChan)
+		lift := repo.AddLift(testLiftOpts)
+		lift.Start(ctx)
+		select {
+		case msg := <-sinkChan:
+			if msg.Type != "lift_added" {
+				t.Errorf("expected %s, got %s", "lift_added", msg.Type)
+			}
+		case <-time.After(time.Second):
+			t.Error("timed out")
+		case e := <-errChan:
+			t.Errorf("something went wrong: %e", e)
+		}
+
+		var ev LiftMessage
+		lift.Call(1)
+		ev = <-sinkChan
+
+		if ev.Type != "lift_called" {
+			t.Errorf("expected %s, got %s", "lift_called", ev.Type)
+		}
+	})
+
+	t.Run("cancelling context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ps := pubsub.NewMemoryPubSub()
+		repo := NewLiftRepo(ps)
+		sinkChan := make(chan LiftMessage)
+		errChan := make(chan error)
+		NewAggregator(ctx, ps, repo, sinkChan, errChan)
+		lift := repo.AddLift(testLiftOpts)
+		lift.Start(ctx)
+		select {
+		case msg := <-sinkChan:
+			if msg.Type != "lift_added" {
+				t.Errorf("expected %s, got %s", "lift_added", msg.Type)
+			}
+		case <-time.After(time.Second):
+			t.Error("timed out")
+		case e := <-errChan:
+			t.Errorf("something went wrong: %e", e)
+		}
+
+		go func() {
+			for i := range 100 {
+				lift.Call(i)
+			}
+			cancel()
+		}()
+
+		var liftCalledEvs []LiftMessage
+		wg := sync.WaitGroup{}
+		wg.Add(100)
+		count := 0
+		go func() {
+			for {
+				select {
+				case ev, ok := <-sinkChan:
+					fmt.Println(ev.Type, ev.Data, ok)
+					count++
+					if ev.Type == "lift_called" {
+						liftCalledEvs = append(liftCalledEvs, ev)
+						wg.Done()
+					}
+				case err := <-errChan:
+					t.Errorf("something went wrong: %e", err)
+				}
+			}
+		}()
+		wg.Wait()
+		if len(liftCalledEvs) != 100 {
+			t.Errorf("expected %d events, got %d", 100, len(liftCalledEvs))
+		}
+	})
 }
