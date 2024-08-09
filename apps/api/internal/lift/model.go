@@ -2,11 +2,13 @@ package lift
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/leow93/miffed-api/internal/pubsub"
+	"github.com/leow93/miffed-api/internal/queue"
 )
 
 type Id = int32
@@ -29,7 +31,7 @@ type Lift struct {
 	currentFloor    int
 	floorsPerSecond int // queue per second
 	doorCloseWaitMs int
-	requests        *Queue // queue to visit
+	requests        *queue.Queue // queue to visit
 	pubsub          pubsub.PubSub
 }
 
@@ -60,14 +62,19 @@ func NewLift(ps pubsub.PubSub, opts NewLiftOpts) *Lift {
 		currentFloor:    opts.CurrentFloor,
 		floorsPerSecond: opts.FloorsPerSecond,
 		doorCloseWaitMs: opts.DoorCloseWaitMs,
-		requests:        NewQueue(),
+		requests:        queue.NewQueue(),
 		pubsub:          ps,
 	}
 	return lift
 }
 
 func (l *Lift) enqueue(floor int) bool {
-	return l.requests.Enqueue(floor)
+	if l.requests.Has(floor) {
+		return false
+	}
+
+	l.requests.Enqueue(floor)
+	return true
 }
 
 func (l *Lift) processFloorRequest() {

@@ -1,8 +1,7 @@
-package lift
+package queue
 
 import (
 	"errors"
-	"slices"
 	"sync"
 )
 
@@ -18,28 +17,37 @@ func emptyQueue() error {
 func NewQueue() *Queue {
 	return &Queue{}
 }
-func (q *Queue) Enqueue(floor int) bool {
+
+func (q *Queue) Enqueue(value int) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
-	if slices.Contains(q.queue, floor) {
-		return false
-	}
-	q.queue = append(q.queue, floor)
-	return true
+	q.queue = append(q.queue, value)
 }
+
 func (q *Queue) Dequeue() (int, error) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 	if len(q.queue) == 0 {
-		// FIXME: assumes no negative floors
-		return 0, errors.New("queue is empty")
+		return 0, emptyQueue()
 	}
 	floor := q.queue[0]
 	q.queue = q.queue[1:]
 	return floor, nil
 }
+
 func (q *Queue) Length() int {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 	return len(q.queue)
+}
+
+func (q *Queue) Has(x int) bool {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+	for _, y := range q.queue {
+		if y == x {
+			return true
+		}
+	}
+	return false
 }

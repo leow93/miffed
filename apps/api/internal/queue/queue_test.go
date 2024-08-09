@@ -1,4 +1,4 @@
-package lift
+package queue
 
 import "testing"
 
@@ -15,10 +15,10 @@ func TestQueue(t *testing.T) {
 		q.Enqueue(5)
 		floor, err := q.Dequeue()
 		if err != nil {
-			t.Fatalf("expected floor to be 5, got error %e", err)
+			t.Fatalf("expected value to be 5, got error %e", err)
 		}
 		if floor != 5 {
-			t.Fatalf("expected floor to be 5, got %d", floor)
+			t.Fatalf("expected value to be 5, got %d", floor)
 		}
 		if q.Length() != 0 {
 			t.Fatalf("expected queue length to be 0, got %d", q.Length())
@@ -36,10 +36,10 @@ func TestQueue(t *testing.T) {
 		for _, want := range expected {
 			got, err := q.Dequeue()
 			if err != nil {
-				t.Fatalf("expected floor to be %d, got error %e", want, err)
+				t.Fatalf("expected value to be %d, got error %e", want, err)
 			}
 			if got != want {
-				t.Fatalf("expected floor to be %d, got %d", want, got)
+				t.Fatalf("expected value to be %d, got %d", want, got)
 			}
 		}
 	})
@@ -50,6 +50,16 @@ func TestQueue(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected error, got nil")
 		}
+	})
 
+	t.Run("queue can be checked for a value", func(t *testing.T) {
+		q := NewQueue()
+		if q.Has(1) == true {
+			t.Error("expected false, got true")
+		}
+		q.Enqueue(1)
+		if q.Has(1) == false {
+			t.Error("expected true, got false")
+		}
 	})
 }
