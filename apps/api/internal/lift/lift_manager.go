@@ -1,9 +1,10 @@
 package lift
 
 import (
+	"sync"
+
 	"github.com/google/uuid"
 	"github.com/leow93/miffed-api/internal/pubsub"
-	"sync"
 )
 
 type Manager struct {
@@ -23,10 +24,12 @@ func NewManager(ps pubsub.PubSub) *Manager {
 	}
 }
 
-func (m *Manager) AddLift(l *Lift) {
+func (m *Manager) AddLift(opts NewLiftOpts) *Lift {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	m.lifts[l.Id] = l
+	lift := NewLift(m.pubsub, opts)
+	m.lifts[lift.Id] = lift
+	return lift
 }
 
 func (m *Manager) GetLift(id Id) *Lift {

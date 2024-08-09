@@ -2,8 +2,9 @@ package http_adapter
 
 import (
 	"encoding/json"
-	"github.com/leow93/miffed-api/internal/lift"
 	"net/http"
+
+	"github.com/leow93/miffed-api/internal/lift"
 )
 
 type ErrResponse struct {
@@ -16,6 +17,7 @@ func okResponse[T any](w http.ResponseWriter, status int, v T) {
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
 }
+
 func errResponse(w http.ResponseWriter, status int, err error) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -28,6 +30,7 @@ func errResponse(w http.ResponseWriter, status int, err error) {
 
 func NewServer(manager *lift.Manager) http.Handler {
 	mux := http.NewServeMux()
+	mux.Handle("POST /lift", addLiftHandler(manager))
 	mux.Handle("POST /lift/{id}/call", callLiftHandler(manager))
 	mux.Handle("/socket", socketHandler(manager))
 	return mux

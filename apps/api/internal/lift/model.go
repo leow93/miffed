@@ -2,11 +2,12 @@ package lift
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 type Id = int32
@@ -31,6 +32,7 @@ type Lift struct {
 	doorCloseWaitMs int
 	requests        *Queue // queue to visit
 	pubsub          pubsub.PubSub
+	started         bool
 }
 
 type LiftState struct {
@@ -107,6 +109,10 @@ func (l *Lift) transit(delta int) {
 // Start
 // Gets the lift to listen for calls
 func (l *Lift) Start(ctx context.Context) {
+	if l.started {
+		return
+	}
+	l.started = true
 	go func() {
 		for {
 			select {
@@ -143,7 +149,7 @@ func (l *Lift) Unsubscribe(id uuid.UUID) {
 func (l *Lift) Call(floor int) bool {
 	enqueued := l.enqueue(floor)
 	if enqueued {
-		l.pubsub.Publish(topic(l.Id), LiftCalled{LiftId: l.Id, Floor: floor})
+		l.publish(LiftCalled{LiftId: l.Id, Floor: floor})
 	}
 	return enqueued
 }

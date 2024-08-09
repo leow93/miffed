@@ -3,12 +3,13 @@ package http_adapter
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
-	"log"
-	"net/http"
 )
 
 var upgrader = websocket.Upgrader{

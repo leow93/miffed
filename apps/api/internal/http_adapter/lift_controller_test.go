@@ -2,14 +2,15 @@ package http_adapter
 
 import (
 	"encoding/json"
-	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func createBody[T any](body T) io.Reader {
@@ -20,8 +21,7 @@ func createBody[T any](body T) io.Reader {
 func initServer() (http.Handler, *lift.Lift) {
 	ps := pubsub.NewMemoryPubSub()
 	m := lift.NewManager(ps)
-	l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
-	m.AddLift(l)
+	l := m.AddLift(lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 	server := NewServer(m)
 	return server, l
 }
@@ -69,6 +69,36 @@ func TestCallLift(t *testing.T) {
 		json.NewDecoder(result.Body).Decode(&res)
 		if res.Code != 400 {
 			t.Errorf("expected code 400, got %d", res.Code)
+		}
+	})
+}
+
+func TestAddLift(t *testing.T) {
+	t.Run("bad data gives a bad request", func(t *testing.T) {
+		server, _ := initServer()
+		rec := httptest.NewRecorder()
+		b := createBody(struct{}{})
+		req := httptest.NewRequest("POST", "/lift", b)
+
+		server.ServeHTTP(rec, req)
+
+		result := rec.Result()
+		if result.StatusCode != 400 {
+			t.Errorf("expected status 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("it adds a new lift", func(t *testing.T) {
+		server, _ := initServer()
+		rec := httptest.NewRecorder()
+		b := createBody(map[string]any{"lowest_floor": 0, "highest_floor": 5, "current_floor": 1, "floors_per_second": 1, "door_close_wait_ms": 3000})
+		req := httptest.NewRequest("POST", "/lift", b)
+
+		server.ServeHTTP(rec, req)
+
+		result := rec.Result()
+		if result.StatusCode != 201 {
+			t.Errorf("expected status 201, got %d", rec.Code)
 		}
 	})
 }

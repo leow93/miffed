@@ -84,6 +84,32 @@ func TestSerialiseEvent(t *testing.T) {
 		}
 	})
 
+	t.Run("LiftAdded begets LiftMessage", func(t *testing.T) {
+		x := SerialiseEvent(LiftAdded{LiftId: 1, Lift: nil})
+		if x == nil {
+			t.Errorf("expected LiftMessage, got nil")
+		}
+		if x.Type != "lift_added" {
+			t.Errorf("expected lift_added, got %v", x.Type)
+		}
+		if x.Data.(LiftAdded).LiftId != 1 {
+			t.Errorf("expected 1, got %v", x.Data.(LiftAdded).LiftId)
+		}
+	})
+
+	t.Run("LiftDeleted begets LiftMessage", func(t *testing.T) {
+		x := SerialiseEvent(LiftDeleted{LiftId: 1})
+		if x == nil {
+			t.Errorf("expected LiftMessage, got nil")
+		}
+		if x.Type != "lift_deleted" {
+			t.Errorf("expected lift_deleted, got %v", x.Type)
+		}
+		if x.Data.(LiftDeleted).LiftId != 1 {
+			t.Errorf("expected 1, got %v", x.Data.(LiftDeleted).LiftId)
+		}
+	})
+
 	tests := []struct{ data any }{{data: "unknown"}, {data: map[string]string{"test": "test"}}}
 	for _, test := range tests {
 		t.Run("unknown type begets nil", func(t *testing.T) {

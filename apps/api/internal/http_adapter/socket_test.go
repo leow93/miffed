@@ -2,13 +2,14 @@ package http_adapter
 
 import (
 	json2 "encoding/json"
-	"github.com/gorilla/websocket"
-	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
+	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func ensureWsConnection(t *testing.T, server *httptest.Server) *websocket.Conn {
@@ -35,8 +36,7 @@ func TestSocket(t *testing.T) {
 	t.Run("establishing a connection", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		m := lift.NewManager(ps)
-		l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
-		m.AddLift(l)
+		m.AddLift(lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 
 		server := httptest.NewServer(NewServer(m))
 		defer server.Close()
@@ -58,8 +58,7 @@ func TestSocket(t *testing.T) {
 	t.Run("sending messages", func(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		m := lift.NewManager(ps)
-		l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
-		m.AddLift(l)
+		l := m.AddLift(lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 		server := httptest.NewServer(NewServer(m))
 		defer server.Close()
 		ws := ensureWsConnection(t, server)
