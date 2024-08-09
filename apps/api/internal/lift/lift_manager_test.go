@@ -1,6 +1,7 @@
 package lift
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -113,27 +114,25 @@ func TestManager(t *testing.T) {
 		})
 		m.CallLift(l.Id, 4)
 
-		called := make(chan int, 2)
-		wg := sync.WaitGroup{}
-		wg.Add(1)
+		called := make(chan int, 1)
 		go func() {
 			for {
-				select {
-				case msg := <-ch:
-					switch msg.(type) {
-					case LiftCalled:
-						called <- msg.(LiftCalled).Floor
-						wg.Done()
-					}
-				case <-time.After(1 * time.Second):
-					t.Error("expected to receive lift call")
+				msg := <-ch
+				fmt.Println("msg", msg)
+				switch ev := msg.(type) {
+				case LiftCalled:
+					called <- ev.Floor
 				}
 			}
 		}()
-		wg.Wait()
-		floor := <-called
-		if floor != 4 {
-			t.Errorf("expected lift to be called to floor %d, got %d", 4, floor)
+
+		select {
+		case floor := <-called:
+			if floor != 4 {
+				t.Errorf("expected lift to be called to floor %d, got %d", 4, floor)
+			}
+		case <-time.After(time.Second):
+			t.Error("timed out, expected to receive lift call")
 		}
 	})
 

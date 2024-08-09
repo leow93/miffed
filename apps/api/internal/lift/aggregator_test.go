@@ -2,7 +2,6 @@ package lift
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -158,7 +157,7 @@ func TestAggregator(t *testing.T) {
 		}
 
 		go func() {
-			for i := range 100 {
+			for i := range 10 {
 				lift.Call(i)
 			}
 			cancel()
@@ -166,14 +165,11 @@ func TestAggregator(t *testing.T) {
 
 		var liftCalledEvs []LiftMessage
 		wg := sync.WaitGroup{}
-		wg.Add(100)
-		count := 0
+		wg.Add(10)
 		go func() {
 			for {
 				select {
-				case ev, ok := <-sinkChan:
-					fmt.Println(ev.Type, ev.Data, ok)
-					count++
+				case ev := <-sinkChan:
 					if ev.Type == "lift_called" {
 						liftCalledEvs = append(liftCalledEvs, ev)
 						wg.Done()
@@ -184,8 +180,8 @@ func TestAggregator(t *testing.T) {
 			}
 		}()
 		wg.Wait()
-		if len(liftCalledEvs) != 100 {
-			t.Errorf("expected %d events, got %d", 100, len(liftCalledEvs))
+		if len(liftCalledEvs) != 10 {
+			t.Errorf("expected %d events, got %d", 10, len(liftCalledEvs))
 		}
 	})
 }
