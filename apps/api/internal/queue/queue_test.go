@@ -1,6 +1,9 @@
 package queue
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func TestQueue(t *testing.T) {
 	t.Run("enqueue", func(t *testing.T) {
@@ -60,6 +63,26 @@ func TestQueue(t *testing.T) {
 		q.Enqueue(1)
 		if q.Has(1) == false {
 			t.Error("expected true, got false")
+		}
+	})
+
+	t.Run("concurrent operations", func(t *testing.T) {
+		q := NewQueue()
+		wg := sync.WaitGroup{}
+		wg.Add(100)
+
+		for i := range 100 {
+			go func(x int) {
+				q.Enqueue(x)
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
+
+		for i := range 100 {
+			if !q.Has(i) {
+				t.Errorf("expected queue to have %d", i)
+			}
 		}
 	})
 }
