@@ -1,14 +1,18 @@
 package http_adapter
 
 import (
+	"context"
 	json2 "encoding/json"
-	"github.com/gorilla/websocket"
-	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
+	"github.com/leow93/miffed-api/internal/eventstore"
+	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/liftv2"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func ensureWsConnection(t *testing.T, server *httptest.Server) *websocket.Conn {
@@ -33,12 +37,16 @@ func readTextMessage(t *testing.T, ws *websocket.Conn) []byte {
 
 func TestSocket(t *testing.T) {
 	t.Run("establishing a connection", func(t *testing.T) {
+		store := eventstore.NewMemoryStore()
+		svc := liftv2.NewLiftService(store)
+		rm := liftv2.NewLiftReadModel(context.TODO(), store)
+
 		ps := pubsub.NewMemoryPubSub()
 		m := lift.NewManager(ps)
 		l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 		m.AddLift(l)
 
-		server := httptest.NewServer(NewServer(m))
+		server := httptest.NewServer(NewServer(m, svc, rm))
 		defer server.Close()
 		ws := ensureWsConnection(t, server)
 		defer ws.Close()
@@ -60,7 +68,11 @@ func TestSocket(t *testing.T) {
 		m := lift.NewManager(ps)
 		l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 		m.AddLift(l)
-		server := httptest.NewServer(NewServer(m))
+
+		store := eventstore.NewMemoryStore()
+		svc := liftv2.NewLiftService(store)
+		rm := liftv2.NewLiftReadModel(context.TODO(), store)
+		server := httptest.NewServer(NewServer(m, svc, rm))
 		defer server.Close()
 		ws := ensureWsConnection(t, server)
 		defer ws.Close()

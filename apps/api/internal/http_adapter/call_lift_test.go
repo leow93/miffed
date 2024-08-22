@@ -1,15 +1,19 @@
 package http_adapter
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/leow93/miffed-api/internal/eventstore"
+	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/liftv2"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func createBody[T any](body T) io.Reader {
@@ -18,11 +22,14 @@ func createBody[T any](body T) io.Reader {
 }
 
 func initServer() (http.Handler, *lift.Lift) {
+	store := eventstore.NewMemoryStore()
+	svc := liftv2.NewLiftService(store)
+	rm := liftv2.NewLiftReadModel(context.TODO(), store)
 	ps := pubsub.NewMemoryPubSub()
 	m := lift.NewManager(ps)
 	l := lift.NewLift(ps, lift.NewLiftOpts{LowestFloor: 0, HighestFloor: 10, CurrentFloor: 0, FloorsPerSecond: 100, DoorCloseWaitMs: 1})
 	m.AddLift(l)
-	server := NewServer(m)
+	server := NewServer(m, svc, rm)
 	return server, l
 }
 

@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/leow93/miffed-api/internal/http_adapter"
-	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/pubsub"
 	"log"
 	"net/http"
+
+	"github.com/leow93/miffed-api/internal/eventstore"
+	"github.com/leow93/miffed-api/internal/http_adapter"
+	"github.com/leow93/miffed-api/internal/lift"
+	"github.com/leow93/miffed-api/internal/liftv2"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 const address = ":8080"
@@ -52,8 +55,12 @@ func main() {
 		l.Start(ctx)
 	}
 
-	server := http_adapter.NewServer(liftManager)
+	eventStore := eventstore.NewMemoryStore()
+	// start read model
+	readModel := liftv2.NewLiftReadModel(ctx, eventStore)
+	liftService := liftv2.NewLiftService(eventStore)
 
+	server := http_adapter.NewServer(liftManager, liftService, readModel)
 	if err := http.ListenAndServe(address, server); err != nil {
 		log.Fatal(err)
 	}

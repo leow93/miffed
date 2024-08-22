@@ -10,7 +10,7 @@ import (
 )
 
 type LiftSpeed struct {
-	FloorsPerSecond int `json:"floors_per_second"`
+	FloorsPerSecond int
 }
 
 type lifecycle int
@@ -68,9 +68,9 @@ type LiftEvent interface {
 }
 
 type LiftAdded struct {
-	Id    LiftId    `json:"id"`
-	Floor int       `json:"floor"`
-	Speed LiftSpeed `json:"speed"`
+	Id    LiftId
+	Floor int
+	Speed LiftSpeed
 }
 
 func (LiftAdded) eventType() string {
