@@ -53,7 +53,6 @@ func NewServer(manager *lift.Manager, liftSvc *liftv2.LiftService, liftReadModel
 	mux := http.NewServeMux()
 
 	// v2
-	mux.Handle("POST /v2/lift", createLiftHandler(liftSvc))
-	mux.Handle("GET /v2/lifts", getLiftsHandler(liftReadModel))
+	mux = liftv2.NewController(mux, liftSvc, liftReadModel)
 	return mux
 }

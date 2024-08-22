@@ -47,19 +47,23 @@ func (lrm *LiftReadModel) startSubscription(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Second):
-			batch, err := lrm.getNextBatch(&checkpoint)
+		default:
+			batch, err := lrm.getNextBatch(checkpoint)
 			if err != nil {
 				continue
 			}
 			lrm.handleBatch(batch)
-
+			if len(batch) > 0 {
+				checkpoint += uint64(len(batch))
+			} else {
+				time.Sleep(10 * time.Millisecond)
+			}
 		}
 	}
 }
 
-func (lrm *LiftReadModel) getNextBatch(checkpoint *uint64) ([]LiftEvent, error) {
-	rawEvs, err := lrm.store.ReadCategory("Lift", *checkpoint)
+func (lrm *LiftReadModel) getNextBatch(checkpoint uint64) ([]LiftEvent, error) {
+	rawEvs, err := lrm.store.ReadCategory("Lift", checkpoint)
 	if err != nil {
 		return []LiftEvent{}, err
 	}
@@ -71,9 +75,6 @@ func (lrm *LiftReadModel) getNextBatch(checkpoint *uint64) ([]LiftEvent, error) 
 			evs = append(evs, ev)
 		}
 	}
-
-	newCheckpoint := uint64(len(evs))
-	*checkpoint = newCheckpoint
 
 	return evs, err
 }

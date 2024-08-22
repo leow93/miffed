@@ -97,11 +97,13 @@ type eventStore interface {
 
 type LiftService struct {
 	decider eventstore.DecisionFunc[command, LiftEvent]
+	store   eventStore
 }
 
 func NewLiftService(store eventStore) *LiftService {
 	return &LiftService{
 		decider: LiftDecider(store),
+		store:   store,
 	}
 }
 
@@ -111,6 +113,31 @@ func streamName(liftId LiftId) string {
 
 func (svc *LiftService) AddLift(ctx context.Context, cmd AddLift) error {
 	return svc.decider(cmd)
+}
+
+func (svc *LiftService) GetLift(ctx context.Context, id LiftId) (LiftModel, error) {
+	rawEvs, _, err := svc.store.ReadStream(streamName(id))
+	if err != nil {
+		return LiftModel{}, nil
+	}
+	var domainEvents []LiftEvent
+	for _, ev := range rawEvs {
+		domainEvent, err := deserialise(ev)
+		if err != nil {
+			continue
+		}
+		domainEvents = append(domainEvents, domainEvent)
+	}
+
+	return fold(domainEvents), nil
+}
+
+func fold(evs []LiftEvent) LiftModel {
+	state := LiftModel{}
+	for _, ev := range evs {
+		state = evolve(state, ev)
+	}
+	return state
 }
 
 func evolve(state LiftModel, event LiftEvent) LiftModel {
