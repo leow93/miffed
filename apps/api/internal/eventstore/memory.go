@@ -8,8 +8,8 @@ import (
 )
 
 type Event struct {
-	eventType string
-	data      []byte
+	EventType string
+	Data      []byte
 }
 
 type Category struct {

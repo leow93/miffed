@@ -6,7 +6,7 @@ type (
 	InitialState[State any]           func() State
 	StreamId[Command any]             func(cmd Command) string
 	Deserialise[E any]                func(ev Event) *E
-	Serialise[E any]                  func(ev E) Event
+	Serialise[E any]                  func(ev E) (Event, error)
 )
 
 type Decider[C, E, S any] struct {
@@ -56,7 +56,10 @@ func NewDecider[C, E, S any](
 		if len(newEvents) > 0 {
 			var serialisedEvs []Event
 			for _, ev := range newEvents {
-				serialised := serialise(ev)
+				serialised, err := serialise(ev)
+				if err != nil {
+					return err
+				}
 				serialisedEvs = append(serialisedEvs, serialised)
 			}
 			return store.AppendToStream(streamName, version, serialisedEvs)

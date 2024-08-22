@@ -4,16 +4,53 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/leow93/miffed-api/internal/eventstore"
 )
 
 type LiftSpeed struct {
 	FloorsPerSecond int `json:"floors_per_second"`
 }
 
+type lifecycle int
+
+const (
+	initial lifecycle = iota
+	created
+)
+
+// State
 type LiftModel struct {
-	Id    int
+	Id        int
+	Floor     int
+	Speed     LiftSpeed
+	lifecycle lifecycle
+}
+
+// Commands
+
+// All commands must implement this interface
+type command interface {
+	commandType() string
+	id() string
+}
+type AddLift struct {
 	Floor int
-	Speed LiftSpeed
+	Id    int
+}
+
+func (AddLift) commandType() string {
+	return "add_lift"
+}
+
+func (l AddLift) id() string {
+	return streamName(l.Id)
+}
+
+// Domain Events
+type LiftEvent interface {
+	eventType() string
+	serialise() ([]byte, error)
 }
 
 type LiftAdded struct {
@@ -22,13 +59,12 @@ type LiftAdded struct {
 	Speed LiftSpeed `json:"speed"`
 }
 
-func (ev LiftAdded) serialise() ([]byte, error) {
-	return json.Marshal(ev)
+func (LiftAdded) eventType() string {
+	return "lift_added"
 }
 
-type LiftEvent[T any] struct {
-	eventType string
-	data      T
+func (ev LiftAdded) serialise() ([]byte, error) {
+	return json.Marshal(ev)
 }
 
 type Event struct {
@@ -36,52 +72,85 @@ type Event struct {
 	data      []byte
 }
 
-func serialise[T any](ev LiftEvent[T]) (*Event, error) {
-	switch ev.eventType {
-	case "lift_added":
-		data, err := json.Marshal(ev.data)
-		return &Event{eventType: ev.eventType, data: data}, err
-	default:
-		return nil, fmt.Errorf("unknown event type: %s", ev.eventType)
-	}
-}
-
 type LiftRepo interface {
-	AddLift(ctx context.Context, lift NewLiftOpts) (LiftModel, error)
+	AddLift(ctx context.Context, lift AddLift) (LiftModel, error)
 }
 
 type eventStore interface {
-	StreamVersion(streamName string) (uint64, error)
-	AppendToStream(streamName string, expectedVersion uint64, events []Event) error
+	AppendToStream(streamName string, expectedVersion uint64, events []eventstore.Event) error
+	ReadStream(streamName string) ([]eventstore.Event, uint64, error)
 }
 
 type LiftService struct {
-	repo  LiftRepo
-	store eventStore
+	decider eventstore.DecisionFunc[command, LiftEvent]
 }
 
-type NewLiftOpts struct {
-	floor int
+func NewLiftService(store eventStore) *LiftService {
+	return &LiftService{
+		decider: LiftDecider(store),
+	}
 }
 
 func streamName(liftId int) string {
 	return fmt.Sprintf("Lift-%d", liftId)
 }
 
-func (svc *LiftService) publish(ctx context.Context, liftId int, ev Event) error {
-	stream := streamName(liftId)
-	version, err := svc.store.StreamVersion(stream)
-	if err != nil {
-		return err
-	}
-
-	return svc.store.AppendToStream(stream, version, []Event{event})
+func (svc *LiftService) AddLift(ctx context.Context, cmd AddLift) error {
+	return svc.decider(cmd)
 }
 
-func (svc *LiftService) AddLift(ctx context.Context, opts NewLiftOpts) error {
-	_, err := svc.repo.AddLift(ctx, opts)
-	if err != nil {
-		return err
+func evolve(state LiftModel, event LiftEvent) LiftModel {
+	if state.lifecycle == initial && event.eventType() == "lift_added" {
+		ev := event.(LiftAdded)
+		return LiftModel{
+			lifecycle: created,
+			Id:        ev.Id,
+			Floor:     ev.Floor,
+			Speed:     ev.Speed,
+		}
 	}
+	return state
+}
+
+func decide(command command, state LiftModel) []LiftEvent {
+	var evs []LiftEvent
+
+	if state.lifecycle == initial && command.commandType() == "add_lift" {
+		addLift := command.(AddLift)
+		evs = append(evs, LiftAdded{Id: addLift.Id, Floor: addLift.Floor, Speed: LiftSpeed{FloorsPerSecond: 100}})
+	}
+
+	return evs
+}
+
+func streamId(cmd command) string {
+	return cmd.id()
+}
+
+func deserialise(ev eventstore.Event) *LiftEvent {
 	return nil
+}
+
+func serialise(ev LiftEvent) (eventstore.Event, error) {
+	var resultEv eventstore.Event
+	bytes, err := ev.serialise()
+	if err != nil {
+		return resultEv, err
+	}
+
+	resultEv = eventstore.Event{
+		EventType: ev.eventType(),
+		Data:      bytes,
+	}
+
+	return resultEv, nil
+}
+
+func LiftDecider(
+	store eventStore,
+) eventstore.DecisionFunc[command, LiftEvent] {
+	initialState := LiftModel{
+		lifecycle: initial,
+	}
+	return eventstore.NewDecider(store, initialState, evolve, decide, streamId, deserialise, serialise)
 }

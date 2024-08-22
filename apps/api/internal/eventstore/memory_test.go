@@ -19,7 +19,7 @@ func readStreamUnsafe(store *MemoryStore, stream string) []Event {
 func TestMemoryStore(t *testing.T) {
 	t.Run("stream must have a parseable category", func(t *testing.T) {
 		store := NewMemoryStore()
-		err := store.AppendToStream("test", 0, []Event{{eventType: "created", data: []byte("123")}})
+		err := store.AppendToStream("test", 0, []Event{{EventType: "created", Data: []byte("123")}})
 		if err == nil {
 			t.Fatal("expected an error, got nil")
 		}
@@ -27,7 +27,7 @@ func TestMemoryStore(t *testing.T) {
 
 	t.Run("appending one event to a stream", func(t *testing.T) {
 		store := NewMemoryStore()
-		err := store.AppendToStream("test-1", 0, []Event{{eventType: "created", data: []byte("123")}})
+		err := store.AppendToStream("test-1", 0, []Event{{EventType: "created", Data: []byte("123")}})
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 		}
@@ -40,7 +40,7 @@ func TestMemoryStore(t *testing.T) {
 
 	t.Run("appending one event to a stream with wrong version", func(t *testing.T) {
 		store := NewMemoryStore()
-		err := store.AppendToStream("test-1", 1, []Event{{eventType: "created", data: []byte("123")}})
+		err := store.AppendToStream("test-1", 1, []Event{{EventType: "created", Data: []byte("123")}})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -55,12 +55,12 @@ func TestMemoryStore(t *testing.T) {
 		store := NewMemoryStore()
 		events := []Event{
 			{
-				eventType: "created",
-				data:      []byte("123"),
+				EventType: "created",
+				Data:      []byte("123"),
 			},
 			{
-				eventType: "updated",
-				data:      []byte("456"),
+				EventType: "updated",
+				Data:      []byte("456"),
 			},
 		}
 		err := store.AppendToStream("test-1", 0, events)
@@ -75,8 +75,8 @@ func TestMemoryStore(t *testing.T) {
 
 		events = []Event{
 			{
-				eventType: "deleted",
-				data:      []byte(""),
+				EventType: "deleted",
+				Data:      []byte(""),
 			},
 		}
 
@@ -93,7 +93,7 @@ func TestMemoryStore(t *testing.T) {
 
 	t.Run("concurrent writes to the same stream cause an error", func(t *testing.T) {
 		store := NewMemoryStore()
-		event := Event{eventType: "created", data: []byte("")}
+		event := Event{EventType: "created", Data: []byte("")}
 
 		wg := sync.WaitGroup{}
 		wg.Add(5)
@@ -127,11 +127,11 @@ func TestMemoryStore(t *testing.T) {
 
 	t.Run("reading the category", func(t *testing.T) {
 		store := NewMemoryStore()
-		err := store.AppendToStream("test-1", 0, []Event{{eventType: "created", data: []byte("123")}})
+		err := store.AppendToStream("test-1", 0, []Event{{EventType: "created", Data: []byte("123")}})
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 		}
-		err = store.AppendToStream("test-2", 0, []Event{{eventType: "created", data: []byte("234")}})
+		err = store.AppendToStream("test-2", 0, []Event{{EventType: "created", Data: []byte("234")}})
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 		}
@@ -161,7 +161,7 @@ func TestMemoryStore(t *testing.T) {
 			store.AppendToStream(
 				stream,
 				0,
-				[]Event{{eventType: "test", data: []byte(strconv.Itoa(i))}})
+				[]Event{{EventType: "test", Data: []byte(strconv.Itoa(i))}})
 		}
 
 		evs, _ := store.ReadCategory("test", 40)
