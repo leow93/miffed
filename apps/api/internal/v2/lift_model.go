@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/leow93/miffed-api/internal/eventstore"
 )
 
@@ -19,9 +20,22 @@ const (
 	created
 )
 
+type LiftId struct {
+	uuid.UUID
+}
+
+func NewLiftId() LiftId {
+	return LiftId{uuid.New()}
+}
+
+func ParseLiftId(id string) (LiftId, error) {
+	uuid, err := uuid.Parse(id)
+	return LiftId{uuid}, err
+}
+
 // State
 type LiftModel struct {
-	Id        int
+	Id        LiftId
 	Floor     int
 	Speed     LiftSpeed
 	lifecycle lifecycle
@@ -36,7 +50,7 @@ type command interface {
 }
 type AddLift struct {
 	Floor int
-	Id    int
+	Id    LiftId
 }
 
 func (AddLift) commandType() string {
@@ -47,14 +61,14 @@ func (l AddLift) id() string {
 	return streamName(l.Id)
 }
 
-// Domain Events
+// Domain Events, must implement the interface
 type LiftEvent interface {
 	eventType() string
 	serialise() ([]byte, error)
 }
 
 type LiftAdded struct {
-	Id    int       `json:"id"`
+	Id    LiftId    `json:"id"`
 	Floor int       `json:"floor"`
 	Speed LiftSpeed `json:"speed"`
 }
@@ -91,8 +105,8 @@ func NewLiftService(store eventStore) *LiftService {
 	}
 }
 
-func streamName(liftId int) string {
-	return fmt.Sprintf("Lift-%d", liftId)
+func streamName(liftId LiftId) string {
+	return fmt.Sprintf("Lift-%s", liftId.String())
 }
 
 func (svc *LiftService) AddLift(ctx context.Context, cmd AddLift) error {
@@ -127,8 +141,21 @@ func streamId(cmd command) string {
 	return cmd.id()
 }
 
-func deserialise(ev eventstore.Event) *LiftEvent {
-	return nil
+func deserialise(ev eventstore.Event) (LiftEvent, error) {
+	switch ev.EventType {
+	case "lift_added":
+		var result LiftAdded
+		err := json.Unmarshal(ev.Data, &result)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	default:
+		{
+			return nil, fmt.Errorf("unknown event type: %s", ev.EventType)
+		}
+	}
 }
 
 func serialise(ev LiftEvent) (eventstore.Event, error) {

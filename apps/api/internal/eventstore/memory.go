@@ -46,6 +46,9 @@ func (cat *Category) sync(streamName string, expectedVersion uint64, events []Ev
 	newStreamEvents := append(*s.events, events...)
 	s.events = &newStreamEvents
 	s.position += uint64(len(events))
+	fmt.Printf("\n\n=== Append to stream %s", streamName)
+	fmt.Printf("\n Stream version: %d\n", s.position)
+
 	// ...then append to category
 	newCategoryEvents := append(*cat.events, events...)
 	cat.events = &newCategoryEvents

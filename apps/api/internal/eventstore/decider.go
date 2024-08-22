@@ -5,7 +5,7 @@ type (
 	Decide[Command, State, Event any] func(cmd Command, state State) []Event
 	InitialState[State any]           func() State
 	StreamId[Command any]             func(cmd Command) string
-	Deserialise[E any]                func(ev Event) *E
+	Deserialise[E any]                func(ev Event) (E, error)
 	Serialise[E any]                  func(ev E) (Event, error)
 )
 
@@ -41,9 +41,9 @@ func NewDecider[C, E, S any](
 
 		var domainEvents []E
 		for _, e := range rawEvents {
-			ev := deserialise(e)
-			if ev != nil {
-				domainEvents = append(domainEvents, *ev)
+			ev, err := deserialise(e)
+			if err == nil {
+				domainEvents = append(domainEvents, ev)
 			}
 		}
 
