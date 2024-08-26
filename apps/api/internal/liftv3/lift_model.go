@@ -2,6 +2,7 @@ package liftv3
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -53,15 +54,11 @@ func (lift *liftModel) handleCalls(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case floor := <-lift.callsChan:
-			fmt.Printf("Lift %s got a call to floor: %d\n", lift.Id.String(), floor)
 			if lift.Floor == floor {
 				continue
 			}
 			if !lift.floorsToVisit.Has(floor) {
 				lift.floorsToVisit.Enqueue(floor)
-				fmt.Printf("Lift %s will visit floor: %d\n", lift.Id.String(), floor)
-			} else {
-				fmt.Printf("Lift %s already going to visit to floor: %d\n", lift.Id.String(), floor)
 			}
 		}
 	}
@@ -79,9 +76,7 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 				if err != nil {
 					continue
 				}
-				fmt.Printf("sending to transit chan: %d\n", nextFloor)
 				lift.transitChan <- nextFloor
-				fmt.Printf("sent to transit chan: %d\n", nextFloor)
 			}
 		}
 	}()
@@ -93,7 +88,6 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case nextFloor := <-lift.transitChan:
-				fmt.Printf("receive from transit chan: %d\n", nextFloor)
 				var delta int
 				if lift.Floor > nextFloor {
 					delta = -1
@@ -104,7 +98,6 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 				for lift.Floor != nextFloor {
 					from := lift.Floor
 					to := lift.Floor + delta
-					fmt.Printf("%s moved from %d to %d on way to %d\n", lift.Id.String(), from, to, nextFloor)
 					lift.Floor = to
 					evs = append(evs, createLiftEvent(lift.Id, "lift_transited", LiftTransited{From: from, To: to}))
 				}
@@ -120,7 +113,6 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 						}
 					}
 				}()
-				fmt.Printf("%s arrived at %d\n", lift.Id.String(), lift.Floor)
 			}
 		}
 	}()
@@ -136,15 +128,6 @@ func (lift *liftModel) handleNotifications(ctx context.Context, dest chan<- Lift
 		}
 	}
 }
-
-type (
-	SubscriptionId int
-	ILiftService   interface {
-		AddLift(ctx context.Context, cfg LiftConfig) (Lift, error)
-		GetLift(ctx context.Context, id LiftId) (Lift, error)
-		CallLift(ctx context.Context, id LiftId, floor int) error
-	}
-)
 
 type LiftService struct {
 	lifts         map[LiftId]*liftModel
@@ -183,16 +166,14 @@ func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
 	return lift, nil
 }
 
-func liftNotFoundErr(id LiftId) error {
-	return fmt.Errorf("lift not found: %s", id.String())
-}
+var liftNotFoundErr = errors.New("lift not found")
 
 func (svc *LiftService) getLiftModel(id LiftId) (*liftModel, error) {
 	svc.mx.Lock()
 	defer svc.mx.Unlock()
 	lift, ok := svc.lifts[id]
 	if !ok {
-		return &liftModel{}, liftNotFoundErr(id)
+		return &liftModel{}, liftNotFoundErr
 	}
 	return lift, nil
 }
@@ -206,6 +187,20 @@ func (svc *LiftService) GetLift(_ context.Context, id LiftId) (Lift, error) {
 	return model.Lift, nil
 }
 
+func (svc *LiftService) GetLifts(_ context.Context) ([]Lift, error) {
+	svc.mx.Lock()
+	defer svc.mx.Unlock()
+	result := make([]Lift, len(svc.lifts))
+
+	i := 0
+	for _, lift := range svc.lifts {
+		result[i] = Lift{Id: lift.Id, Floor: lift.Floor}
+		i++
+	}
+
+	return result, nil
+}
+
 func (svc *LiftService) CallLift(ctx context.Context, id LiftId, floor int) error {
 	model, err := svc.getLiftModel(id)
 	if err != nil {
@@ -215,6 +210,7 @@ func (svc *LiftService) CallLift(ctx context.Context, id LiftId, floor int) erro
 	return model.call(ctx, floor)
 }
 
+// TODO: this should be the responsibility of a separate object
 func (svc *LiftService) manageLiftLifecycle(ctx context.Context) {
 	for {
 		select {
