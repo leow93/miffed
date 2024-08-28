@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/leow93/miffed-api/internal/queue"
 )
 
@@ -103,16 +104,14 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 				}
 
 				evs = append(evs, createLiftEvent(lift.Id, "lift_arrived", LiftArrived{Floor: nextFloor}))
-				go func() {
-					for _, ev := range evs {
-						select {
-						case <-ctx.Done():
-							return
-						default:
-							lift.notifications <- ev
-						}
+				for _, ev := range evs {
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						lift.notifications <- ev
 					}
-				}()
+				}
 			}
 		}
 	}()
@@ -129,11 +128,31 @@ func (lift *liftModel) handleNotifications(ctx context.Context, dest chan<- Lift
 	}
 }
 
+type subscriptionId struct {
+	uuid.UUID
+}
+
+type subscription struct {
+	Id       subscriptionId
+	EventsCh chan LiftEvent
+	ctx      context.Context
+	cancel   context.CancelFunc
+}
+
+func newSubscription(ctx context.Context, cancel context.CancelFunc) *subscription {
+	return &subscription{
+		Id:       subscriptionId{uuid.New()},
+		EventsCh: make(chan LiftEvent),
+		ctx:      ctx,
+		cancel:   cancel,
+	}
+}
+
 type LiftService struct {
 	lifts         map[LiftId]*liftModel
 	mx            sync.Mutex
 	lifecycleChan chan *liftModel
-	Notifications chan LiftEvent
+	notifications chan LiftEvent
 }
 
 func NewLiftService(ctx context.Context) *LiftService {
@@ -141,7 +160,7 @@ func NewLiftService(ctx context.Context) *LiftService {
 		lifts:         make(map[LiftId]*liftModel),
 		mx:            sync.Mutex{},
 		lifecycleChan: make(chan *liftModel),
-		Notifications: make(chan LiftEvent),
+		notifications: make(chan LiftEvent),
 	}
 	go svc.manageLiftLifecycle(ctx)
 	return svc
@@ -166,14 +185,14 @@ func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
 	return lift, nil
 }
 
-var liftNotFoundErr = errors.New("lift not found")
+var errLiftNotFound = errors.New("lift not found")
 
 func (svc *LiftService) getLiftModel(id LiftId) (*liftModel, error) {
 	svc.mx.Lock()
 	defer svc.mx.Unlock()
 	lift, ok := svc.lifts[id]
 	if !ok {
-		return &liftModel{}, liftNotFoundErr
+		return &liftModel{}, errLiftNotFound
 	}
 	return lift, nil
 }
@@ -225,5 +244,80 @@ func (svc *LiftService) manageLiftLifecycle(ctx context.Context) {
 func (svc *LiftService) startLiftProcessing(ctx context.Context, lift *liftModel) {
 	go lift.handleCalls(ctx)
 	go lift.handleFloorsToVisit(ctx)
-	go lift.handleNotifications(ctx, svc.Notifications)
+	go lift.handleNotifications(ctx, svc.notifications)
+}
+
+type SubscriptionManager struct {
+	liftService   *LiftService
+	subscriptions map[subscriptionId]*subscription
+	mx            sync.Mutex
+}
+
+func NewSubscriptionManager(backgroundCtx context.Context, svc *LiftService) *SubscriptionManager {
+	manager := &SubscriptionManager{
+		liftService:   svc,
+		subscriptions: make(map[subscriptionId]*subscription),
+		mx:            sync.Mutex{},
+	}
+
+	go manager.startBroadcast(backgroundCtx)
+
+	return manager
+}
+
+func (s *SubscriptionManager) Subscribe() *subscription {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+	subCtx, cancel := context.WithCancel(context.Background())
+	sub := newSubscription(subCtx, cancel)
+	s.subscriptions[sub.Id] = sub
+	return sub
+}
+
+var errSubNotFound = errors.New("subscription not found")
+
+func (s *SubscriptionManager) Unsubscribe(id subscriptionId) error {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+	sub, ok := s.subscriptions[id]
+	if !ok {
+		return errSubNotFound
+	}
+	sub.cancel()
+
+	delete(s.subscriptions, id)
+	return nil
+}
+
+func (s *SubscriptionManager) startBroadcast(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case ev := <-s.liftService.notifications:
+			s.broadcastEvent(ctx, ev)
+		}
+	}
+}
+
+func (s *SubscriptionManager) broadcastEvent(ctx context.Context, ev LiftEvent) {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+	wg := sync.WaitGroup{}
+
+	wg.Add(len(s.subscriptions))
+	for _, s := range s.subscriptions {
+		go func(sub *subscription) {
+			select {
+			case <-ctx.Done():
+				wg.Done()
+				return
+			case <-sub.ctx.Done():
+				wg.Done()
+			case sub.EventsCh <- ev:
+				wg.Done()
+			}
+		}(s)
+	}
+	wg.Wait()
 }
