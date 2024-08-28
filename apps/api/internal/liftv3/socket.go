@@ -2,6 +2,7 @@ package liftv3
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -25,18 +26,14 @@ func writer(c *websocket.Conn, manager *SubscriptionManager, sub *subscription) 
 		c.Close()
 	}()
 
-	// send the current floor of the lift
-	_, err := c.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return
-	}
-
 	for {
 		msg := <-sub.EventsCh
 		w, err := c.NextWriter(websocket.TextMessage)
 		if err != nil {
 			return
 		}
+
+		fmt.Println("msg", msg)
 
 		bytes, err := json.Marshal(&msg)
 		if err != nil {
@@ -64,4 +61,9 @@ func socketHandler(subscriptionMgr *SubscriptionManager) http.Handler {
 		// go reader(c, svc)
 		go writer(c, subscriptionMgr, sub)
 	})
+}
+
+func NewSocket(mux *http.ServeMux, subs *SubscriptionManager) *http.ServeMux {
+	mux.Handle("/socket", socketHandler(subs))
+	return mux
 }
