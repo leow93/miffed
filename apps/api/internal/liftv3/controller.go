@@ -58,6 +58,39 @@ func createLiftHandler(svc *LiftService) http.Handler {
 	})
 }
 
+type callLiftReq struct {
+	Floor int `json:"floor"`
+}
+
+func callLiftHandler(svc *LiftService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body createLiftReq
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		err := decoder.Decode(&body)
+		if err != nil && err != io.EOF {
+			errResponse(w, 400, err)
+			return
+		}
+
+		id, err := ParseLiftId(r.PathValue("id"))
+		if err != nil {
+			errResponse(w, 404, errLiftNotFound)
+			return
+		}
+
+		if err = svc.CallLift(r.Context(), id, body.Floor); err != nil {
+			if errors.Is(err, errLiftNotFound) {
+				errResponse(w, 404, errLiftNotFound)
+				return
+			}
+			errResponse(w, 500, err)
+			return
+		}
+		okResponse(w, 201, struct{}{})
+	})
+}
+
 type getLiftRes struct {
 	Id    LiftId `json:"id"`
 	Floor int    `json:"floor"`
@@ -84,12 +117,12 @@ func getLiftHandler(svc *LiftService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, err := ParseLiftId(r.PathValue("id"))
 		if err != nil {
-			errResponse(w, 404, liftNotFoundErr)
+			errResponse(w, 404, errLiftNotFound)
 			return
 		}
 		if lift, err := svc.GetLift(r.Context(), id); err != nil {
 			statusCode := 500
-			if errors.Is(err, liftNotFoundErr) {
+			if errors.Is(err, errLiftNotFound) {
 				statusCode = 404
 			}
 			errResponse(w, statusCode, err)
@@ -103,5 +136,6 @@ func NewController(mux *http.ServeMux, svc *LiftService) *http.ServeMux {
 	mux.Handle("POST /lift", createLiftHandler(svc))
 	mux.Handle("GET /lift", getLiftsHandler(svc))
 	mux.Handle("GET /lift/{id}", getLiftHandler(svc))
+	mux.Handle("POST /lift/{id}/call", callLiftHandler(svc))
 	return mux
 }

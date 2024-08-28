@@ -4,12 +4,47 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
+
+func waitFor[T any](f func() (T, error), timer <-chan time.Time) (T, error) {
+	for {
+		select {
+		case <-timer:
+			var x T
+			return x, fmt.Errorf("timed out")
+		default:
+			result, err := f()
+			if err != nil {
+				return waitFor(f, timer)
+			}
+			return result, nil
+
+		}
+	}
+}
+
+func waitForLiftAtFloor(svc *LiftService, liftId LiftId, floor int) (Lift, error) {
+	fn := func() (Lift, error) {
+		l, err := svc.GetLift(context.TODO(), liftId)
+		if err != nil {
+			return Lift{}, err
+		}
+		if l.Floor != floor {
+			return Lift{}, errors.New("wrong floor")
+		}
+		return l, nil
+	}
+	timer := time.After(time.Second)
+	return waitFor(fn, timer)
+}
 
 func createLiftBody(floor int) io.Reader {
 	body := createLiftReq{Floor: floor}
@@ -127,6 +162,27 @@ func Test_LiftController(t *testing.T) {
 
 		if !containsId(body, liftTwo.Id) {
 			t.Errorf("got %s, want %s", body[0].Id, liftId)
+		}
+	})
+
+	t.Run("POST /lift/{id}/call calls the lift to the given floor", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		body := io.Reader(strings.NewReader("{\"floor\": 100}"))
+		req := httptest.NewRequest("POST", "/lift/"+liftId.String()+"/call", body)
+		server.ServeHTTP(rec, req)
+
+		result := rec.Result()
+		if result.StatusCode != 201 {
+			t.Errorf("expected 201, got %d", result.StatusCode)
+		}
+
+		lift, err := waitForLiftAtFloor(svc, liftId, 100)
+		if err != nil {
+			t.Errorf("expected no error, got %e", err)
+			return
+		}
+		if lift.Floor != 100 {
+			t.Errorf("expected %d, got %d", 100, lift.Floor)
 		}
 	})
 }
