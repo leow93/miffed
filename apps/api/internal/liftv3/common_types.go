@@ -20,9 +20,9 @@ func ParseLiftId(id string) (LiftId, error) {
 }
 
 type LiftEvent struct {
-	Data      any
-	EventType string
-	LiftId    LiftId
+	Data      any    `json:"data"`
+	EventType string `json:"event_type"`
+	LiftId    LiftId `json:"lift_id"`
 }
 
 func createLiftEvent(liftId LiftId, eventType string, data any) LiftEvent {
@@ -34,19 +34,14 @@ func createLiftEvent(liftId LiftId, eventType string, data any) LiftEvent {
 }
 
 type LiftAdded struct {
-	Floor int
-}
-
-type LiftCalled struct {
-	From int
-	To   int
+	Floor int `json:"floor"`
 }
 
 type LiftTransited struct {
-	From int
-	To   int
+	From int `json:"from"`
+	To   int `json:"to"`
 }
 
 type LiftArrived struct {
-	Floor int
+	Floor int `json:"floor"`
 }
