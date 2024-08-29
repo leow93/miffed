@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/websocket"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func ensureWsConnection(t *testing.T, server *httptest.Server) *websocket.Conn {
@@ -35,8 +36,9 @@ func Test_Socket(t *testing.T) {
 	t.Run("establishing a connection", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		svc := NewLiftService(ctx)
-		subs := NewSubscriptionManager(ctx, svc)
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
+		subs := NewSubscriptionManager(ctx, ps)
 
 		mux := http.NewServeMux()
 		mux = NewSocket(mux, subs)

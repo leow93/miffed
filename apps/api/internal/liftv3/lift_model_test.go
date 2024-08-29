@@ -7,13 +7,16 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func Test_AddingLifts(t *testing.T) {
 	t.Run("it can add a lift", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		svc := NewLiftService(ctx)
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
 
 		lift, err := svc.AddLift(LiftConfig{Floor: 10})
 		if err != nil {
@@ -37,7 +40,8 @@ func Test_AddingLifts(t *testing.T) {
 	t.Run("getting an unknown lift returns an error", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		svc := NewLiftService(ctx)
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
 
 		id := NewLiftId()
 
@@ -57,7 +61,8 @@ func Test_CallingLift(t *testing.T) {
 	t.Run("returns an error if the lift cannot be found", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		svc := NewLiftService(ctx)
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
 
 		id := NewLiftId()
 
@@ -74,7 +79,8 @@ func Test_CallingLift(t *testing.T) {
 	t.Run("lift can be called", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		svc := NewLiftService(ctx)
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
 
 		lift, err := svc.AddLift(LiftConfig{Floor: 10})
 		if err != nil {
@@ -90,10 +96,15 @@ func Test_CallingLift(t *testing.T) {
 
 	t.Run("lift descends between floors after being called", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		svc := NewLiftService(ctx)
-
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
+		subs := NewSubscriptionManager(context.TODO(), ps)
+		id, ch, _ := subs.Subscribe()
 		lift, err := svc.AddLift(LiftConfig{Floor: 10})
+		defer func() {
+			subs.Unsubscribe(id)
+			cancel()
+		}()
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 			return
@@ -133,7 +144,7 @@ func Test_CallingLift(t *testing.T) {
 			case <-time.After(time.Second):
 				t.Error("timed out")
 				return
-			case got := <-svc.notifications:
+			case got := <-ch:
 				if got.EventType != want.EventType {
 					t.Errorf("expected %s, got %s", want.EventType, got.EventType)
 					return
@@ -152,10 +163,15 @@ func Test_CallingLift(t *testing.T) {
 
 	t.Run("lift ascends between floors after being called", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		svc := NewLiftService(ctx)
-
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
+		subs := NewSubscriptionManager(context.TODO(), ps)
+		id, ch, err := subs.Subscribe()
 		lift, err := svc.AddLift(LiftConfig{Floor: 10})
+		defer func() {
+			subs.Unsubscribe(id)
+			cancel()
+		}()
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 			return
@@ -192,7 +208,7 @@ func Test_CallingLift(t *testing.T) {
 			case <-time.After(time.Second):
 				t.Error("timed out")
 				return
-			case got := <-svc.notifications:
+			case got := <-ch:
 				if got.EventType != want.EventType {
 					t.Errorf("expected %s, got %s", want.EventType, got.EventType)
 					return
@@ -213,12 +229,16 @@ func Test_CallingLift(t *testing.T) {
 func Test_SubscriptionManager(t *testing.T) {
 	t.Run("a subscription returns events", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		svc := NewLiftService(ctx)
-		subs := NewSubscriptionManager(ctx, svc)
-		sub := subs.Subscribe()
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
+		subs := NewSubscriptionManager(ctx, ps)
+		id, ch, _ := subs.Subscribe()
 		lift, _ := svc.AddLift(LiftConfig{Floor: 4})
 		svc.CallLift(ctx, lift.Id, 5)
+		defer func() {
+			subs.Unsubscribe(id)
+			cancel()
+		}()
 
 		expectedEvents := []LiftEvent{
 			{
@@ -240,7 +260,7 @@ func Test_SubscriptionManager(t *testing.T) {
 		}
 
 		for _, want := range expectedEvents {
-			got := <-sub.EventsCh
+			got := <-ch
 			if got.EventType != want.EventType {
 				t.Errorf("expected %s, got %s", want.EventType, got.EventType)
 				return
@@ -258,22 +278,25 @@ func Test_SubscriptionManager(t *testing.T) {
 
 	t.Run("unsubscribing", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		svc := NewLiftService(ctx)
-		subs := NewSubscriptionManager(ctx, svc)
-		sub := subs.Subscribe()
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
+		subs := NewSubscriptionManager(ctx, ps)
+		id, ch, _ := subs.Subscribe()
 		lift, _ := svc.AddLift(LiftConfig{Floor: 4})
+		defer func() {
+			cancel()
+		}()
 
-		msg := <-sub.EventsCh
+		msg := <-ch
 		if msg.EventType != "lift_added" {
 			t.Errorf("expected lift_added, got %s", msg.EventType)
 			return
 		}
-		subs.Unsubscribe(sub.Id)
+		subs.Unsubscribe(id)
 		svc.CallLift(context.TODO(), lift.Id, 10)
 
 		select {
-		case ev := <-sub.EventsCh:
+		case ev := <-ch:
 			t.Errorf("expected no message, got %v", ev)
 		case <-time.After(100 * time.Millisecond):
 			// ok
@@ -282,13 +305,18 @@ func Test_SubscriptionManager(t *testing.T) {
 
 	t.Run("events are sent in order to the subscriber", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		svc := NewLiftService(ctx)
-		subs := NewSubscriptionManager(ctx, svc)
-		sub := subs.Subscribe()
+		ps := pubsub.NewMemoryPubSub()
+		svc := NewLiftService(ctx, ps)
+		subs := NewSubscriptionManager(ctx, ps)
 		lift, _ := svc.AddLift(LiftConfig{Floor: 0})
+		id, ch, _ := subs.Subscribe()
+		defer func() {
+			subs.Unsubscribe(id)
+			cancel()
+		}()
+
 		// pull off the lift_added event
-		ev := <-sub.EventsCh
+		ev := <-ch
 		if ev.EventType != "lift_added" {
 			t.Errorf("expected lift_added, got %s", ev.EventType)
 		}
@@ -313,7 +341,7 @@ func Test_SubscriptionManager(t *testing.T) {
 		var got []LiftEvent
 		go func() {
 			for i := 0; i < 100; i++ {
-				ev := <-sub.EventsCh
+				ev := <-ch
 				got = append(got, ev)
 				wg.Done()
 			}

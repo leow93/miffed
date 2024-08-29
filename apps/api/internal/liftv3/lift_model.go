@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/leow93/miffed-api/internal/pubsub"
 	"github.com/leow93/miffed-api/internal/queue"
 )
 
@@ -117,13 +118,13 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 	}()
 }
 
-func (lift *liftModel) handleNotifications(ctx context.Context, dest chan<- LiftEvent) {
+func (lift *liftModel) handleNotifications(ctx context.Context, publish publish) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case ev := <-lift.notifications:
-			dest <- ev
+			publish(ev)
 		}
 	}
 }
@@ -148,19 +149,26 @@ func newSubscription(ctx context.Context, cancel context.CancelFunc) *subscripti
 	}
 }
 
+type publish func(ev any) error
+
 type LiftService struct {
 	lifts         map[LiftId]*liftModel
 	mx            sync.Mutex
 	lifecycleChan chan *liftModel
 	notifications chan LiftEvent
+	publish       publish
 }
 
-func NewLiftService(ctx context.Context) *LiftService {
+func NewLiftService(ctx context.Context, ps pubsub.PubSub) *LiftService {
+	publish := func(ev any) error {
+		return ps.Publish("lifts", ev)
+	}
 	svc := &LiftService{
 		lifts:         make(map[LiftId]*liftModel),
 		mx:            sync.Mutex{},
 		lifecycleChan: make(chan *liftModel),
 		notifications: make(chan LiftEvent),
+		publish:       publish,
 	}
 	go svc.manageLiftLifecycle(ctx)
 	return svc
@@ -244,20 +252,16 @@ func (svc *LiftService) manageLiftLifecycle(ctx context.Context) {
 func (svc *LiftService) startLiftProcessing(ctx context.Context, lift *liftModel) {
 	go lift.handleCalls(ctx)
 	go lift.handleFloorsToVisit(ctx)
-	go lift.handleNotifications(ctx, svc.notifications)
+	go lift.handleNotifications(ctx, svc.publish)
 }
 
 type SubscriptionManager struct {
-	liftService   *LiftService
-	subscriptions map[subscriptionId]*subscription
-	mx            sync.Mutex
+	pubsub pubsub.PubSub
 }
 
-func NewSubscriptionManager(backgroundCtx context.Context, svc *LiftService) *SubscriptionManager {
+func NewSubscriptionManager(backgroundCtx context.Context, ps pubsub.PubSub) *SubscriptionManager {
 	manager := &SubscriptionManager{
-		liftService:   svc,
-		subscriptions: make(map[subscriptionId]*subscription),
-		mx:            sync.Mutex{},
+		pubsub: ps,
 	}
 
 	go manager.startBroadcast(backgroundCtx)
@@ -265,27 +269,31 @@ func NewSubscriptionManager(backgroundCtx context.Context, svc *LiftService) *Su
 	return manager
 }
 
-func (s *SubscriptionManager) Subscribe() *subscription {
-	s.mx.Lock()
-	defer s.mx.Unlock()
-	subCtx, cancel := context.WithCancel(context.Background())
-	sub := newSubscription(subCtx, cancel)
-	s.subscriptions[sub.Id] = sub
-	return sub
+func (s *SubscriptionManager) Subscribe() (uuid.UUID, <-chan LiftEvent, error) {
+	id, ch, err := s.pubsub.Subscribe("lifts")
+	eventsCh := make(chan LiftEvent)
+	if err != nil {
+		return id, eventsCh, err
+	}
+	go func() {
+		for {
+			// TODO: make pubsub generic
+			msg := <-ch
+			event, ok := msg.(LiftEvent)
+			if !ok {
+				continue
+			}
+			eventsCh <- event
+		}
+	}()
+
+	return id, eventsCh, nil
 }
 
 var errSubNotFound = errors.New("subscription not found")
 
-func (s *SubscriptionManager) Unsubscribe(id subscriptionId) error {
-	s.mx.Lock()
-	defer s.mx.Unlock()
-	sub, ok := s.subscriptions[id]
-	if !ok {
-		return errSubNotFound
-	}
-	sub.cancel()
-
-	delete(s.subscriptions, id)
+func (s *SubscriptionManager) Unsubscribe(id uuid.UUID) error {
+	s.pubsub.Unsubscribe(id)
 	return nil
 }
 
@@ -294,30 +302,30 @@ func (s *SubscriptionManager) startBroadcast(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case ev := <-s.liftService.notifications:
-			s.broadcastEvent(ctx, ev)
+			//		case ev := <-s.liftService.notifications:
+			//			s.broadcastEvent(ctx, ev)
 		}
 	}
 }
 
 func (s *SubscriptionManager) broadcastEvent(ctx context.Context, ev LiftEvent) {
-	s.mx.Lock()
-	defer s.mx.Unlock()
-	wg := sync.WaitGroup{}
-
-	wg.Add(len(s.subscriptions))
-	for _, s := range s.subscriptions {
-		go func(sub *subscription) {
-			select {
-			case <-ctx.Done():
-				wg.Done()
-				return
-			case <-sub.ctx.Done():
-				wg.Done()
-			case sub.EventsCh <- ev:
-				wg.Done()
-			}
-		}(s)
-	}
-	wg.Wait()
+	// wg := sync.WaitGroup{}
+	//
+	// wg.Add(len(s.subscriptions))
+	//
+	//	for _, s := range s.subscriptions {
+	//		go func(sub *subscription) {
+	//			select {
+	//			case <-ctx.Done():
+	//				wg.Done()
+	//				return
+	//			case <-sub.ctx.Done():
+	//				wg.Done()
+	//			case sub.EventsCh <- ev:
+	//				wg.Done()
+	//			}
+	//		}(s)
+	//	}
+	//
+	// wg.Wait()
 }

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func waitFor[T any](f func() (T, error), timer <-chan time.Time) (T, error) {
@@ -59,7 +61,8 @@ func createLiftBody(floor int) io.Reader {
 func Test_LiftController(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	svc := NewLiftService(ctx)
+	ps := pubsub.NewMemoryPubSub()
+	svc := NewLiftService(ctx, ps)
 	server := http.NewServeMux()
 	server = NewController(server, svc)
 	var liftId LiftId

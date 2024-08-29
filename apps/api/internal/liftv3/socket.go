@@ -2,10 +2,10 @@ package liftv3
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -20,20 +20,18 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func writer(c *websocket.Conn, manager *SubscriptionManager, sub *subscription) {
+func writer(c *websocket.Conn, manager *SubscriptionManager, id uuid.UUID, ch <-chan LiftEvent) {
 	defer func() {
-		manager.Unsubscribe(sub.Id)
+		manager.Unsubscribe(id)
 		c.Close()
 	}()
 
 	for {
-		msg := <-sub.EventsCh
+		msg := <-ch
 		w, err := c.NextWriter(websocket.TextMessage)
 		if err != nil {
 			return
 		}
-
-		fmt.Println("msg", msg)
 
 		bytes, err := json.Marshal(&msg)
 		if err != nil {
@@ -56,10 +54,14 @@ func socketHandler(subscriptionMgr *SubscriptionManager) http.Handler {
 			return
 		}
 
-		sub := subscriptionMgr.Subscribe()
+		id, ch, err := subscriptionMgr.Subscribe()
+		if err != nil {
+			log.Println("error subscribing", err)
+			return
+		}
 
 		// go reader(c, svc)
-		go writer(c, subscriptionMgr, sub)
+		go writer(c, subscriptionMgr, id, ch)
 	})
 }
 
