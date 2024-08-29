@@ -1,12 +1,12 @@
-// TODO: delete this file when done
 package main
 
 import (
 	"context"
-	"fmt"
-	"time"
+	"log"
+	"net/http"
 
 	"github.com/leow93/miffed-api/internal/liftv3"
+	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
 func callLift(svc *liftv3.LiftService, id liftv3.LiftId, floor int) {
@@ -17,47 +17,21 @@ func callLift(svc *liftv3.LiftService, id liftv3.LiftId, floor int) {
 	}
 }
 
+const address = ":8080"
+
 func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
-	svc := liftv3.NewLiftService(ctx)
+	ps := pubsub.NewMemoryPubSub()
+	svc := liftv3.NewLiftService(ctx, ps)
+	subs := liftv3.NewSubscriptionManager(ctx, ps)
 
-	liftCount := 1
+	mux := http.NewServeMux()
+	mux = liftv3.NewController(mux, svc)
+	mux = liftv3.NewSocket(mux, subs)
 
-	var lifts []liftv3.Lift
-
-	for range liftCount {
-		lift, err := svc.AddLift(liftv3.LiftConfig{Floor: 0})
-		if err != nil {
-			panic(err)
-		}
-		lifts = append(lifts, lift)
+	if err := http.ListenAndServe(address, mux); err != nil {
+		cancel()
+		log.Fatal(err)
 	}
-
-	fmt.Println("lifts", lifts)
-
-	for _, l := range lifts {
-		callLift(svc, l.Id, 5)
-		callLift(svc, l.Id, 5)
-		callLift(svc, l.Id, 5)
-		callLift(svc, l.Id, 5)
-		callLift(svc, l.Id, 5)
-		callLift(svc, l.Id, 5)
-		callLift(svc, l.Id, 6)
-		callLift(svc, l.Id, 10)
-		callLift(svc, l.Id, 10000)
-	}
-
-	time.Sleep(time.Second)
-
-	l, err := svc.AddLift(liftv3.LiftConfig{Floor: 0})
-	if err != nil {
-		panic(err)
-	}
-	callLift(svc, l.Id, 1)
-	callLift(svc, l.Id, 3)
-	callLift(svc, l.Id, 17)
-	cancel()
-	callLift(svc, l.Id, 99)
-	time.Sleep(time.Second * 2)
 }
