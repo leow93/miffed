@@ -152,6 +152,7 @@ func newSubscription(ctx context.Context, cancel context.CancelFunc) *subscripti
 type publish func(ev any) error
 
 type LiftService struct {
+	liftOrder     []LiftId
 	lifts         map[LiftId]*liftModel
 	mx            sync.Mutex
 	lifecycleChan chan *liftModel
@@ -184,6 +185,7 @@ func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
 	}
 	liftModel := newLiftModel(lift)
 	svc.lifts[id] = liftModel
+	svc.liftOrder = append(svc.liftOrder, id)
 	go func() {
 		svc.lifecycleChan <- liftModel
 	}()
@@ -217,12 +219,14 @@ func (svc *LiftService) GetLift(_ context.Context, id LiftId) (Lift, error) {
 func (svc *LiftService) GetLifts(_ context.Context) ([]Lift, error) {
 	svc.mx.Lock()
 	defer svc.mx.Unlock()
-	result := make([]Lift, len(svc.lifts))
+	result := make([]Lift, len(svc.liftOrder))
 
-	i := 0
-	for _, lift := range svc.lifts {
+	for i, id := range svc.liftOrder {
+		lift, ok := svc.lifts[id]
+		if !ok {
+			continue
+		}
 		result[i] = Lift{Id: lift.Id, Floor: lift.Floor}
-		i++
 	}
 
 	return result, nil

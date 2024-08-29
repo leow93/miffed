@@ -168,6 +168,53 @@ func Test_LiftController(t *testing.T) {
 		}
 	})
 
+	t.Run("GET /lift returns a consistent order", func(t *testing.T) {
+		var lifts []Lift
+		for i := 0; i < 100; i++ {
+			lift, err := svc.AddLift(LiftConfig{Floor: 5})
+			if err != nil {
+				lifts = append(lifts, lift)
+			}
+		}
+
+		expectedOrder := []LiftId{}
+		// test order ten times
+		for i := 0; i < 10; i++ {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/lift", io.Reader(strings.NewReader("")))
+			server.ServeHTTP(rec, req)
+			result := rec.Result()
+			if result.StatusCode != 200 {
+				t.Errorf("expected 200, got %d", result.StatusCode)
+			}
+			body := []getLiftRes{}
+			decoder := json.NewDecoder(result.Body)
+			err := decoder.Decode(&body)
+			if err != nil && err != io.EOF {
+				t.Errorf("expected no error, got %e", err)
+			}
+
+			// Fill with result of first pass
+			if len(expectedOrder) == 0 {
+				for _, l := range body {
+					expectedOrder = append(expectedOrder, l.Id)
+				}
+			} else {
+				// test against expected order
+				if len(expectedOrder) != len(body) {
+					t.Errorf("expected %d, got %d", len(expectedOrder), len(body))
+					return
+				}
+				for i := 0; i < len(expectedOrder); i++ {
+					if expectedOrder[i] != body[i].Id {
+						t.Errorf("expected %s, got %s", expectedOrder[i], body[i].Id)
+						return
+					}
+				}
+			}
+		}
+	})
+
 	t.Run("POST /lift/{id}/call calls the lift to the given floor", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		body := io.Reader(strings.NewReader("{\"floor\": 100}"))
