@@ -132,10 +132,18 @@ func getLiftHandler(svc *LiftService) http.Handler {
 	})
 }
 
+func openCorsPolicy(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Obviously don't do this in prod
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func NewController(mux *http.ServeMux, svc *LiftService) *http.ServeMux {
-	mux.Handle("POST /lift", createLiftHandler(svc))
-	mux.Handle("GET /lift", getLiftsHandler(svc))
-	mux.Handle("GET /lift/{id}", getLiftHandler(svc))
-	mux.Handle("POST /lift/{id}/call", callLiftHandler(svc))
+	mux.Handle("POST /lift", openCorsPolicy(createLiftHandler(svc)))
+	mux.Handle("GET /lift", openCorsPolicy(getLiftsHandler(svc)))
+	mux.Handle("GET /lift/{id}", openCorsPolicy(getLiftHandler(svc)))
+	mux.Handle("POST /lift/{id}/call", openCorsPolicy(callLiftHandler(svc)))
 	return mux
 }
