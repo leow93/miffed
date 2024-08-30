@@ -1,7 +1,14 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import "./App.css";
 import { socket } from "./modules/socket";
-import { useLiftState, useSendMessage } from "./modules/lifts/wiring";
+
+import {
+  useLiftSocket,
+  useLifts,
+  useAddLift,
+  useFetchLifts,
+  useCallLift,
+} from "./modules/liftsv2/store";
 
 type LiftProps = {
   lowestFloor: number;
@@ -51,41 +58,38 @@ function Lift(props: LiftProps) {
 const ws = socket("ws://localhost:8080/socket");
 
 function App() {
-  const state = useLiftState(ws);
-  const sendMessage = useSendMessage(ws);
+  useLiftSocket(ws);
+  const fetch = useFetchLifts();
+  useEffect(() => {
+    fetch();
+  }, []);
 
-  const onCall = (liftId: number, floor: number) => {
-    sendMessage({
-      liftId,
-      type: "call_lift",
-      floor,
-    });
+  const lifts = useLifts();
+  const callLift = useCallLift();
+  const addLift = useAddLift();
+  const onAddLift = () => {
+    addLift({ floor: 0 });
   };
-
   return (
     <main>
       <div className="px-4">
         <h1>miffed</h1>
       </div>
+      <button onClick={onAddLift}>add lift</button>
+      {lifts.map(lift => {
+        return (
+          <Lift
+            key={lift.id}
+            lowestFloor={0}
+            highestFloor={10}
+            doorsOpen={false}
+            currentFloor={lift.floor}
+            onCall={floor => callLift(lift.id, floor)}
+          />
+        );
+      })}
 
-      <div className="flex align-end">
-        {Object.entries(state).map(([liftId, liftState]) => {
-          if (liftState.type === "created") {
-            return (
-              <Lift
-                key={liftId}
-                lowestFloor={liftState.lowestFloor}
-                highestFloor={liftState.highestFloor}
-                currentFloor={liftState.currentFloor}
-                doorsOpen={liftState.doorsOpen}
-                onCall={floor => onCall(Number(liftId), floor)}
-              />
-            );
-          }
-
-          return null;
-        })}
-      </div>
+      <div className="flex align-end"></div>
     </main>
   );
 }
