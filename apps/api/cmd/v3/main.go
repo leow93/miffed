@@ -7,6 +7,7 @@ import (
 
 	"github.com/leow93/miffed-api/internal/liftv3"
 	"github.com/leow93/miffed-api/internal/pubsub"
+	"github.com/rs/cors"
 )
 
 func callLift(svc *liftv3.LiftService, id liftv3.LiftId, floor int) {
@@ -30,7 +31,9 @@ func main() {
 	mux = liftv3.NewController(mux, svc)
 	mux = liftv3.NewSocket(mux, subs)
 
-	if err := http.ListenAndServe(address, mux); err != nil {
+	server := cors.AllowAll().Handler(mux)
+
+	if err := http.ListenAndServe(address, server); err != nil {
 		cancel()
 		log.Fatal(err)
 	}
