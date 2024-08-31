@@ -1,10 +1,12 @@
-package liftv3
+package httpadapter
 
 import (
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+
+	"github.com/leow93/miffed-api/internal/lift"
 )
 
 type errorResponse struct {
@@ -34,11 +36,11 @@ type createLiftReq struct {
 }
 
 type createLiftRes struct {
-	Id    LiftId `json:"id"`
-	Floor int    `json:"floor"`
+	Id    lift.LiftId `json:"id"`
+	Floor int         `json:"floor"`
 }
 
-func createLiftHandler(svc *LiftService) http.Handler {
+func createLiftHandler(svc *lift.LiftService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body createLiftReq
 		decoder := json.NewDecoder(r.Body)
@@ -49,7 +51,7 @@ func createLiftHandler(svc *LiftService) http.Handler {
 			return
 		}
 
-		lift, err := svc.AddLift(LiftConfig{Floor: body.Floor, FloorDelayMs: body.FloorDelayMs})
+		lift, err := svc.AddLift(lift.LiftConfig{Floor: body.Floor, FloorDelayMs: body.FloorDelayMs})
 		if err != nil {
 			errResponse(w, 500, err)
 			return
@@ -63,7 +65,7 @@ type callLiftReq struct {
 	Floor int `json:"floor"`
 }
 
-func callLiftHandler(svc *LiftService) http.Handler {
+func callLiftHandler(svc *lift.LiftService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body createLiftReq
 		decoder := json.NewDecoder(r.Body)
@@ -74,15 +76,15 @@ func callLiftHandler(svc *LiftService) http.Handler {
 			return
 		}
 
-		id, err := ParseLiftId(r.PathValue("id"))
+		id, err := lift.ParseLiftId(r.PathValue("id"))
 		if err != nil {
-			errResponse(w, 404, errLiftNotFound)
+			errResponse(w, 404, lift.ErrLiftNotFound)
 			return
 		}
 
 		if err = svc.CallLift(r.Context(), id, body.Floor); err != nil {
-			if errors.Is(err, errLiftNotFound) {
-				errResponse(w, 404, errLiftNotFound)
+			if errors.Is(err, lift.ErrLiftNotFound) {
+				errResponse(w, 404, lift.ErrLiftNotFound)
 				return
 			}
 			errResponse(w, 500, err)
@@ -93,11 +95,11 @@ func callLiftHandler(svc *LiftService) http.Handler {
 }
 
 type getLiftRes struct {
-	Id    LiftId `json:"id"`
-	Floor int    `json:"floor"`
+	Id    lift.LiftId `json:"id"`
+	Floor int         `json:"floor"`
 }
 
-func getLiftsHandler(svc *LiftService) http.Handler {
+func getLiftsHandler(svc *lift.LiftService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if lifts, err := svc.GetLifts(r.Context()); err != nil {
 			errResponse(w, 500, err)
@@ -114,26 +116,26 @@ func getLiftsHandler(svc *LiftService) http.Handler {
 	})
 }
 
-func getLiftHandler(svc *LiftService) http.Handler {
+func getLiftHandler(svc *lift.LiftService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, err := ParseLiftId(r.PathValue("id"))
+		id, err := lift.ParseLiftId(r.PathValue("id"))
 		if err != nil {
-			errResponse(w, 404, errLiftNotFound)
+			errResponse(w, 404, lift.ErrLiftNotFound)
 			return
 		}
-		if lift, err := svc.GetLift(r.Context(), id); err != nil {
+		if l, err := svc.GetLift(r.Context(), id); err != nil {
 			statusCode := 500
-			if errors.Is(err, errLiftNotFound) {
+			if errors.Is(err, lift.ErrLiftNotFound) {
 				statusCode = 404
 			}
 			errResponse(w, statusCode, err)
 		} else {
-			okResponse(w, 200, getLiftRes{Id: lift.Id, Floor: lift.Floor})
+			okResponse(w, 200, getLiftRes{Id: l.Id, Floor: l.Floor})
 		}
 	})
 }
 
-func NewController(mux *http.ServeMux, svc *LiftService) *http.ServeMux {
+func NewController(mux *http.ServeMux, svc *lift.LiftService) *http.ServeMux {
 	mux.Handle("POST /lift", createLiftHandler(svc))
 	mux.Handle("GET /lift", getLiftsHandler(svc))
 	mux.Handle("GET /lift/{id}", getLiftHandler(svc))

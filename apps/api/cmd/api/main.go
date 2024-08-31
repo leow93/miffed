@@ -5,63 +5,37 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/leow93/miffed-api/internal/eventstore"
-	"github.com/leow93/miffed-api/internal/http_adapter"
+	"github.com/leow93/miffed-api/internal/httpadapter"
 	"github.com/leow93/miffed-api/internal/lift"
-	"github.com/leow93/miffed-api/internal/liftv2"
 	"github.com/leow93/miffed-api/internal/pubsub"
+	"github.com/rs/cors"
 )
+
+func callLift(svc *lift.LiftService, id lift.LiftId, floor int) {
+	ctx := context.TODO()
+	err := svc.CallLift(ctx, id, floor)
+	if err != nil {
+		panic(err)
+	}
+}
 
 const address = ":8080"
 
 func main() {
 	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
 	ps := pubsub.NewMemoryPubSub()
-	liftManager := lift.NewManager(ps)
+	svc := lift.NewLiftService(ctx, ps)
+	subs := lift.NewSubscriptionManager(ctx, ps)
 
-	lifts := []*lift.Lift{
-		lift.NewLift(ps, lift.NewLiftOpts{
-			LowestFloor:     0,
-			HighestFloor:    10,
-			CurrentFloor:    0,
-			FloorsPerSecond: 1,
-			DoorCloseWaitMs: 500,
-		}),
-		lift.NewLift(ps, lift.NewLiftOpts{
-			LowestFloor:     0,
-			HighestFloor:    8,
-			CurrentFloor:    5,
-			FloorsPerSecond: 5,
-			DoorCloseWaitMs: 50,
-		}),
-		lift.NewLift(ps, lift.NewLiftOpts{
-			LowestFloor:     0,
-			HighestFloor:    5,
-			CurrentFloor:    3,
-			FloorsPerSecond: 1,
-			DoorCloseWaitMs: 2000,
-		}),
-		lift.NewLift(ps, lift.NewLiftOpts{
-			LowestFloor:     0,
-			HighestFloor:    15,
-			CurrentFloor:    3,
-			FloorsPerSecond: 10,
-			DoorCloseWaitMs: 2000,
-		}),
-	}
+	mux := http.NewServeMux()
+	mux = httpadapter.NewController(mux, svc)
+	mux = httpadapter.NewSocket(mux, subs)
 
-	for _, l := range lifts {
-		liftManager.AddLift(l)
-		l.Start(ctx)
-	}
+	server := cors.AllowAll().Handler(mux)
 
-	eventStore := eventstore.NewMemoryStore()
-	// start read model
-	readModel := liftv2.NewLiftReadModel(ctx, eventStore)
-	liftService := liftv2.NewLiftService(eventStore)
-
-	server := http_adapter.NewServer(liftManager, liftService, readModel)
 	if err := http.ListenAndServe(address, server); err != nil {
+		cancel()
 		log.Fatal(err)
 	}
 }

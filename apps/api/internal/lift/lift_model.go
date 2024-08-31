@@ -1,4 +1,4 @@
-package liftv3
+package lift
 
 import (
 	"context"
@@ -201,14 +201,14 @@ func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
 	return lift, nil
 }
 
-var errLiftNotFound = errors.New("lift not found")
+var ErrLiftNotFound = errors.New("lift not found")
 
 func (svc *LiftService) getLiftModel(id LiftId) (*liftModel, error) {
 	svc.mx.Lock()
 	defer svc.mx.Unlock()
 	lift, ok := svc.lifts[id]
 	if !ok {
-		return &liftModel{}, errLiftNotFound
+		return &liftModel{}, ErrLiftNotFound
 	}
 	return lift, nil
 }
@@ -294,8 +294,6 @@ func (s *SubscriptionManager) Subscribe() (uuid.UUID, <-chan LiftEvent, error) {
 
 	return id, eventsCh, nil
 }
-
-var errSubNotFound = errors.New("subscription not found")
 
 func (s *SubscriptionManager) Unsubscribe(id uuid.UUID) error {
 	s.pubsub.Unsubscribe(id)

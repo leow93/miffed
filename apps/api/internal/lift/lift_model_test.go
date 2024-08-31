@@ -1,4 +1,4 @@
-package liftv3
+package lift
 
 import (
 	"context"
@@ -51,7 +51,7 @@ func Test_AddingLifts(t *testing.T) {
 			return
 		}
 
-		if !errors.Is(err, errLiftNotFound) {
+		if !errors.Is(err, ErrLiftNotFound) {
 			t.Errorf("expected lift not found error, got %e", err)
 		}
 	})
@@ -71,7 +71,7 @@ func Test_CallingLift(t *testing.T) {
 			t.Error("expected an error, got nil")
 			return
 		}
-		if !errors.Is(err, errLiftNotFound) {
+		if !errors.Is(err, ErrLiftNotFound) {
 			t.Errorf("expected lift not found error, got %e", err)
 		}
 	})

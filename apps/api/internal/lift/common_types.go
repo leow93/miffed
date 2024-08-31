@@ -1,4 +1,4 @@
-package liftv3
+package lift
 
 import (
 	"github.com/google/uuid"

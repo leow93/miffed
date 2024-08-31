@@ -1,4 +1,4 @@
-package liftv3
+package httpadapter
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
@@ -33,14 +34,14 @@ func waitFor[T any](f func() (T, error), timer <-chan time.Time) (T, error) {
 	}
 }
 
-func waitForLiftAtFloor(svc *LiftService, liftId LiftId, floor int) (Lift, error) {
-	fn := func() (Lift, error) {
+func waitForLiftAtFloor(svc *lift.LiftService, liftId lift.LiftId, floor int) (lift.Lift, error) {
+	fn := func() (lift.Lift, error) {
 		l, err := svc.GetLift(context.TODO(), liftId)
 		if err != nil {
-			return Lift{}, err
+			return lift.Lift{}, err
 		}
 		if l.Floor != floor {
-			return Lift{}, errors.New("wrong floor")
+			return lift.Lift{}, errors.New("wrong floor")
 		}
 		return l, nil
 	}
@@ -62,10 +63,10 @@ func Test_LiftController(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ps := pubsub.NewMemoryPubSub()
-	svc := NewLiftService(ctx, ps)
+	svc := lift.NewLiftService(ctx, ps)
 	server := http.NewServeMux()
 	server = NewController(server, svc)
-	var liftId LiftId
+	var liftId lift.LiftId
 
 	t.Run("POST /lift bad request results in a 400", func(t *testing.T) {
 		rec := httptest.NewRecorder()
@@ -134,7 +135,7 @@ func Test_LiftController(t *testing.T) {
 
 	t.Run("GET /lift returns list of lifts", func(t *testing.T) {
 		// add another lift first
-		liftTwo, err := svc.AddLift(LiftConfig{Floor: 5})
+		liftTwo, err := svc.AddLift(lift.LiftConfig{Floor: 5})
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 			return
@@ -169,15 +170,15 @@ func Test_LiftController(t *testing.T) {
 	})
 
 	t.Run("GET /lift returns a consistent order", func(t *testing.T) {
-		var lifts []Lift
 		for i := 0; i < 100; i++ {
-			lift, err := svc.AddLift(LiftConfig{Floor: 5})
+			_, err := svc.AddLift(lift.LiftConfig{Floor: 5})
 			if err != nil {
-				lifts = append(lifts, lift)
+				t.Errorf("expected no error, got %e", err)
+				return
 			}
 		}
 
-		expectedOrder := []LiftId{}
+		expectedOrder := []lift.LiftId{}
 		// test order ten times
 		for i := 0; i < 10; i++ {
 			rec := httptest.NewRecorder()
@@ -237,7 +238,7 @@ func Test_LiftController(t *testing.T) {
 	})
 }
 
-func containsId(lifts []getLiftRes, id LiftId) bool {
+func containsId(lifts []getLiftRes, id lift.LiftId) bool {
 	for _, l := range lifts {
 		if l.Id == id {
 			return true

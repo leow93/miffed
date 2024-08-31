@@ -2,13 +2,7 @@ import { useEffect, useMemo } from "react";
 import "./App.css";
 import { socket } from "./modules/socket";
 
-import {
-  useLiftSocket,
-  useLifts,
-  useAddLift,
-  useFetchLifts,
-  useCallLift,
-} from "./modules/liftsv2/store";
+import { useLiftSocket, useLifts, useAddLift, useFetchLifts, useCallLift } from "./modules/lifts";
 
 type LiftProps = {
   lowestFloor: number;
@@ -76,20 +70,20 @@ function App() {
         <h1>miffed</h1>
       </div>
       <button onClick={onAddLift}>add lift</button>
-      {lifts.map(lift => {
-        return (
-          <Lift
-            key={lift.id}
-            lowestFloor={0}
-            highestFloor={10}
-            doorsOpen={false}
-            currentFloor={lift.floor}
-            onCall={floor => callLift(lift.id, floor)}
-          />
-        );
-      })}
-
-      <div className="flex align-end"></div>
+      <div className="flex align-end">
+        {lifts.map(lift => {
+          return (
+            <Lift
+              key={lift.id}
+              lowestFloor={0}
+              highestFloor={10}
+              doorsOpen={false}
+              currentFloor={lift.floor}
+              onCall={floor => callLift(lift.id, floor)}
+            />
+          );
+        })}
+      </div>
     </main>
   );
 }

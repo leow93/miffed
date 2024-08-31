@@ -1,4 +1,4 @@
-package liftv3
+package httpadapter
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/leow93/miffed-api/internal/lift"
 )
 
 var upgrader = websocket.Upgrader{
@@ -20,7 +21,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func writer(c *websocket.Conn, manager *SubscriptionManager, id uuid.UUID, ch <-chan LiftEvent) {
+func writer(c *websocket.Conn, manager *lift.SubscriptionManager, id uuid.UUID, ch <-chan lift.LiftEvent) {
 	defer func() {
 		manager.Unsubscribe(id)
 		c.Close()
@@ -46,7 +47,7 @@ func writer(c *websocket.Conn, manager *SubscriptionManager, id uuid.UUID, ch <-
 	}
 }
 
-func socketHandler(subscriptionMgr *SubscriptionManager) http.Handler {
+func socketHandler(subscriptionMgr *lift.SubscriptionManager) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -60,12 +61,11 @@ func socketHandler(subscriptionMgr *SubscriptionManager) http.Handler {
 			return
 		}
 
-		// go reader(c, svc)
 		go writer(c, subscriptionMgr, id, ch)
 	})
 }
 
-func NewSocket(mux *http.ServeMux, subs *SubscriptionManager) *http.ServeMux {
+func NewSocket(mux *http.ServeMux, subs *lift.SubscriptionManager) *http.ServeMux {
 	mux.Handle("/socket", socketHandler(subs))
 	return mux
 }

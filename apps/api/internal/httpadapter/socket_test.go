@@ -1,4 +1,4 @@
-package liftv3
+package httpadapter
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/websocket"
+	"github.com/leow93/miffed-api/internal/lift"
 	"github.com/leow93/miffed-api/internal/pubsub"
 )
 
@@ -37,8 +38,8 @@ func Test_Socket(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		ps := pubsub.NewMemoryPubSub()
-		svc := NewLiftService(ctx, ps)
-		subs := NewSubscriptionManager(ctx, ps)
+		svc := lift.NewLiftService(ctx, ps)
+		subs := lift.NewSubscriptionManager(ctx, ps)
 
 		mux := http.NewServeMux()
 		mux = NewSocket(mux, subs)
@@ -46,10 +47,10 @@ func Test_Socket(t *testing.T) {
 		ws := ensureWsConnection(t, server)
 		defer ws.Close()
 
-		svc.AddLift(LiftConfig{Floor: 5})
+		svc.AddLift(lift.LiftConfig{Floor: 5})
 
 		msg := readTextMessage(t, ws)
-		var event LiftEvent
+		var event lift.LiftEvent
 		err := json.Unmarshal(msg, &event)
 		if err != nil {
 			t.Fatalf("could not unmarshal message %v", err)
