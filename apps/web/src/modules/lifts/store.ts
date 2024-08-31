@@ -22,9 +22,7 @@ type StoreState = {
 export const useLiftsStore = create<StoreState>((set, get) => ({
   lifts: createEntityState([]),
   fetchLifts: async () => {
-    console.log("fetching lifts!");
     const lifts = await getLifts();
-    console.log("lifts fetched!");
     set({ lifts: createEntityState(lifts) });
   },
   addLift: async (opts: { floor: number }) => {
@@ -112,5 +110,5 @@ export const useLiftSocket = (socket: WebSocket) => {
     return () => {
       socket.removeEventListener("message", onMessage);
     };
-  }, [handler]);
+  }, [handler, socket]);
 };

@@ -56,6 +56,7 @@ function App() {
   const fetch = useFetchLifts();
   useEffect(() => {
     fetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const lifts = useLifts();
