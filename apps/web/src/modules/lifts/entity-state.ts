@@ -36,23 +36,6 @@ export const pushEntity = <T extends { id: K }, K extends Id = string>(
   };
 };
 
-export const updateEntity = <T extends { id: K }, K extends Id = string>(
-  state: EntityState<K, T>,
-  id: K,
-  item: T,
-): EntityState<K, T> => {
-  const entity = state.entities[id];
-  if (!entity) return state;
-
-  return {
-    ids: state.ids,
-    entities: {
-      ...state.entities,
-      [id]: item,
-    },
-  };
-};
-
 export const updateEntityBy = <T extends { id: K }, K extends Id = string>(
   state: EntityState<K, T>,
   id: K,
@@ -65,7 +48,10 @@ export const updateEntityBy = <T extends { id: K }, K extends Id = string>(
     ids: state.ids,
     entities: {
       ...state.entities,
-      [id]: fn(entity),
+      [id]: {
+        ...fn(entity),
+        id: id,
+      },
     },
   };
 };
