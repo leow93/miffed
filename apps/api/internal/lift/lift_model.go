@@ -30,6 +30,7 @@ type liftModel struct {
 	transitChan   chan int       // channel which takes valid floors to visit and moves there one by one
 	notifications chan LiftEvent // channel for clients to receive notifications on
 	floorDelayMs  int
+	mx            sync.RWMutex
 }
 
 func newLiftModel(lift Lift) *liftModel {
@@ -40,7 +41,24 @@ func newLiftModel(lift Lift) *liftModel {
 		transitChan:   make(chan int),
 		notifications: make(chan LiftEvent),
 		floorDelayMs:  lift.floorDelayMs,
+		mx:            sync.RWMutex{},
 	}
+}
+
+func (lift *liftModel) currentFloor() int {
+	lift.mx.RLock()
+	defer lift.mx.RUnlock()
+	return lift.Floor
+}
+
+func (lift *liftModel) transitToFloor(ctx context.Context, delta int) {
+	lift.mx.Lock()
+	defer lift.mx.Unlock()
+	from := lift.Floor
+	to := lift.Floor + delta
+	lift.Floor = to
+	lift.publish(ctx, createLiftEvent(lift.Id, "lift_transited", LiftTransited{From: from, To: to}))
+	time.Sleep(time.Duration(lift.floorDelayMs * 1000 * 1000))
 }
 
 func (lift *liftModel) call(ctx context.Context, floor int) error {
@@ -69,7 +87,7 @@ func (lift *liftModel) handleCalls(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case floor := <-lift.callsChan:
-			if lift.Floor == floor {
+			if lift.currentFloor() == floor {
 				continue
 			}
 			if !lift.floorsToVisit.Has(floor) {
@@ -104,17 +122,13 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 				return
 			case nextFloor := <-lift.transitChan:
 				var delta int
-				if lift.Floor > nextFloor {
+				if lift.currentFloor() > nextFloor {
 					delta = -1
 				} else {
 					delta = 1
 				}
-				for lift.Floor != nextFloor {
-					from := lift.Floor
-					to := lift.Floor + delta
-					lift.Floor = to
-					lift.publish(ctx, createLiftEvent(lift.Id, "lift_transited", LiftTransited{From: from, To: to}))
-					time.Sleep(time.Duration(lift.floorDelayMs * 1000 * 1000))
+				for lift.currentFloor() != nextFloor {
+					lift.transitToFloor(ctx, delta)
 				}
 
 				lift.publish(ctx, createLiftEvent(lift.Id, "lift_arrived", LiftArrived{Floor: nextFloor}))
@@ -196,7 +210,7 @@ func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
 		svc.lifecycleChan <- liftModel
 	}()
 	go func() {
-		liftModel.notifications <- createLiftEvent(liftModel.Id, "lift_added", LiftAdded{Floor: liftModel.Floor})
+		liftModel.notifications <- createLiftEvent(liftModel.Id, "lift_added", LiftAdded{Floor: liftModel.currentFloor()})
 	}()
 	return lift, nil
 }
@@ -232,7 +246,7 @@ func (svc *LiftService) GetLifts(_ context.Context) ([]Lift, error) {
 		if !ok {
 			continue
 		}
-		result[i] = Lift{Id: lift.Id, Floor: lift.Floor}
+		result[i] = Lift{Id: lift.Id, Floor: lift.currentFloor()}
 	}
 
 	return result, nil
