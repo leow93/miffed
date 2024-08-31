@@ -233,7 +233,10 @@ func (svc *LiftService) GetLift(_ context.Context, id LiftId) (Lift, error) {
 		return Lift{}, err
 	}
 
-	return model.Lift, nil
+	return Lift{
+		Id:    id,
+		Floor: model.currentFloor(),
+	}, nil
 }
 
 func (svc *LiftService) GetLifts(_ context.Context) ([]Lift, error) {
