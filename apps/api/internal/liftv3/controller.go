@@ -29,7 +29,8 @@ func errResponse(w http.ResponseWriter, status int, err error) {
 }
 
 type createLiftReq struct {
-	Floor int `json:"floor"`
+	Floor        int `json:"floor"`
+	FloorDelayMs int `json:"floor_delay_ms"`
 }
 
 type createLiftRes struct {
@@ -48,7 +49,7 @@ func createLiftHandler(svc *LiftService) http.Handler {
 			return
 		}
 
-		lift, err := svc.AddLift(LiftConfig{Floor: body.Floor})
+		lift, err := svc.AddLift(LiftConfig{Floor: body.Floor, FloorDelayMs: body.FloorDelayMs})
 		if err != nil {
 			errResponse(w, 500, err)
 			return

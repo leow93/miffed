@@ -11,7 +11,10 @@ export const createLift = (opts: { floor: number }): Promise<Lift> =>
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(opts),
+    body: JSON.stringify({
+      floor: opts.floor,
+      floor_delay_ms: 1000,
+    }),
     method: "POST",
   }).then(res => res.json());
 

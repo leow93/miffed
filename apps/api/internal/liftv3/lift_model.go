@@ -13,12 +13,14 @@ import (
 )
 
 type LiftConfig struct {
-	Floor int
+	Floor        int
+	FloorDelayMs int
 }
 
 type Lift struct {
-	Id    LiftId
-	Floor int
+	Id           LiftId
+	Floor        int
+	floorDelayMs int
 }
 
 type liftModel struct {
@@ -27,6 +29,7 @@ type liftModel struct {
 	callsChan     chan int       // channel which buffers client calls
 	transitChan   chan int       // channel which takes valid floors to visit and moves there one by one
 	notifications chan LiftEvent // channel for clients to receive notifications on
+	floorDelayMs  int
 }
 
 func newLiftModel(lift Lift) *liftModel {
@@ -36,6 +39,7 @@ func newLiftModel(lift Lift) *liftModel {
 		callsChan:     make(chan int),
 		transitChan:   make(chan int),
 		notifications: make(chan LiftEvent),
+		floorDelayMs:  lift.floorDelayMs,
 	}
 }
 
@@ -47,6 +51,15 @@ func (lift *liftModel) call(ctx context.Context, floor int) error {
 		return fmt.Errorf("timed out calling lift")
 	case lift.callsChan <- floor:
 		return nil
+	}
+}
+
+func (lift *liftModel) publish(ctx context.Context, ev LiftEvent) {
+	select {
+	case <-ctx.Done():
+		return
+	case lift.notifications <- ev:
+		return
 	}
 }
 
@@ -96,23 +109,15 @@ func (lift *liftModel) handleFloorsToVisit(ctx context.Context) {
 				} else {
 					delta = 1
 				}
-				evs := []LiftEvent{}
 				for lift.Floor != nextFloor {
 					from := lift.Floor
 					to := lift.Floor + delta
 					lift.Floor = to
-					evs = append(evs, createLiftEvent(lift.Id, "lift_transited", LiftTransited{From: from, To: to}))
+					lift.publish(ctx, createLiftEvent(lift.Id, "lift_transited", LiftTransited{From: from, To: to}))
+					time.Sleep(time.Duration(lift.floorDelayMs * 1000 * 1000))
 				}
 
-				evs = append(evs, createLiftEvent(lift.Id, "lift_arrived", LiftArrived{Floor: nextFloor}))
-				for _, ev := range evs {
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						lift.notifications <- ev
-					}
-				}
+				lift.publish(ctx, createLiftEvent(lift.Id, "lift_arrived", LiftArrived{Floor: nextFloor}))
 			}
 		}
 	}()
@@ -180,8 +185,9 @@ func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
 	defer svc.mx.Unlock()
 	id := NewLiftId()
 	lift := Lift{
-		Id:    id,
-		Floor: cfg.Floor,
+		Id:           id,
+		Floor:        cfg.Floor,
+		floorDelayMs: cfg.FloorDelayMs,
 	}
 	liftModel := newLiftModel(lift)
 	svc.lifts[id] = liftModel
@@ -241,7 +247,6 @@ func (svc *LiftService) CallLift(ctx context.Context, id LiftId, floor int) erro
 	return model.call(ctx, floor)
 }
 
-// TODO: this should be the responsibility of a separate object
 func (svc *LiftService) manageLiftLifecycle(ctx context.Context) {
 	for {
 		select {
@@ -264,13 +269,9 @@ type SubscriptionManager struct {
 }
 
 func NewSubscriptionManager(backgroundCtx context.Context, ps pubsub.PubSub) *SubscriptionManager {
-	manager := &SubscriptionManager{
+	return &SubscriptionManager{
 		pubsub: ps,
 	}
-
-	go manager.startBroadcast(backgroundCtx)
-
-	return manager
 }
 
 func (s *SubscriptionManager) Subscribe() (uuid.UUID, <-chan LiftEvent, error) {
@@ -299,37 +300,4 @@ var errSubNotFound = errors.New("subscription not found")
 func (s *SubscriptionManager) Unsubscribe(id uuid.UUID) error {
 	s.pubsub.Unsubscribe(id)
 	return nil
-}
-
-func (s *SubscriptionManager) startBroadcast(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-			//		case ev := <-s.liftService.notifications:
-			//			s.broadcastEvent(ctx, ev)
-		}
-	}
-}
-
-func (s *SubscriptionManager) broadcastEvent(ctx context.Context, ev LiftEvent) {
-	// wg := sync.WaitGroup{}
-	//
-	// wg.Add(len(s.subscriptions))
-	//
-	//	for _, s := range s.subscriptions {
-	//		go func(sub *subscription) {
-	//			select {
-	//			case <-ctx.Done():
-	//				wg.Done()
-	//				return
-	//			case <-sub.ctx.Done():
-	//				wg.Done()
-	//			case sub.EventsCh <- ev:
-	//				wg.Done()
-	//			}
-	//		}(s)
-	//	}
-	//
-	// wg.Wait()
 }
