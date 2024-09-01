@@ -51,7 +51,7 @@ func createLiftHandler(svc *lift.LiftService) http.Handler {
 			return
 		}
 
-		lift, err := svc.AddLift(lift.LiftConfig{Floor: body.Floor, FloorDelayMs: body.FloorDelayMs})
+		lift, err := svc.AddLift(r.Context(), lift.LiftConfig{Floor: body.Floor, FloorDelayMs: body.FloorDelayMs})
 		if err != nil {
 			errResponse(w, 500, err)
 			return

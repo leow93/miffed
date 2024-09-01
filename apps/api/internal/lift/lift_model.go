@@ -194,7 +194,7 @@ func NewLiftService(ctx context.Context, ps pubsub.PubSub) *LiftService {
 	return svc
 }
 
-func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
+func (svc *LiftService) AddLift(ctx context.Context, cfg LiftConfig) (Lift, error) {
 	svc.mx.Lock()
 	defer svc.mx.Unlock()
 	id := NewLiftId()
@@ -209,9 +209,7 @@ func (svc *LiftService) AddLift(cfg LiftConfig) (Lift, error) {
 	go func() {
 		svc.lifecycleChan <- liftModel
 	}()
-	go func() {
-		liftModel.notifications <- createLiftEvent(liftModel.Id, "lift_added", LiftAdded{Floor: liftModel.currentFloor()})
-	}()
+	liftModel.publish(ctx, createLiftEvent(liftModel.Id, "lift_added", LiftAdded{Floor: liftModel.currentFloor()}))
 	return lift, nil
 }
 

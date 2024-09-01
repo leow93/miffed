@@ -3,7 +3,6 @@ package lift
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ func Test_AddingLifts(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		svc := NewLiftService(ctx, ps)
 
-		lift, err := svc.AddLift(LiftConfig{Floor: 10})
+		lift, err := svc.AddLift(ctx, LiftConfig{Floor: 10})
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 			return
@@ -82,7 +81,7 @@ func Test_CallingLift(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		svc := NewLiftService(ctx, ps)
 
-		lift, err := svc.AddLift(LiftConfig{Floor: 10})
+		lift, err := svc.AddLift(ctx, LiftConfig{Floor: 10})
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 			return
@@ -100,7 +99,7 @@ func Test_CallingLift(t *testing.T) {
 		svc := NewLiftService(ctx, ps)
 		subs := NewSubscriptionManager(context.TODO(), ps)
 		id, ch, _ := subs.Subscribe()
-		lift, err := svc.AddLift(LiftConfig{Floor: 10})
+		lift, err := svc.AddLift(ctx, LiftConfig{Floor: 10})
 		defer func() {
 			subs.Unsubscribe(id)
 			cancel()
@@ -167,7 +166,7 @@ func Test_CallingLift(t *testing.T) {
 		svc := NewLiftService(ctx, ps)
 		subs := NewSubscriptionManager(context.TODO(), ps)
 		id, ch, err := subs.Subscribe()
-		lift, err := svc.AddLift(LiftConfig{Floor: 10})
+		lift, err := svc.AddLift(ctx, LiftConfig{Floor: 10})
 		defer func() {
 			subs.Unsubscribe(id)
 			cancel()
@@ -233,7 +232,7 @@ func Test_SubscriptionManager(t *testing.T) {
 		svc := NewLiftService(ctx, ps)
 		subs := NewSubscriptionManager(ctx, ps)
 		id, ch, _ := subs.Subscribe()
-		lift, _ := svc.AddLift(LiftConfig{Floor: 4})
+		lift, _ := svc.AddLift(ctx, LiftConfig{Floor: 4})
 		svc.CallLift(ctx, lift.Id, 5)
 		defer func() {
 			subs.Unsubscribe(id)
@@ -282,7 +281,7 @@ func Test_SubscriptionManager(t *testing.T) {
 		svc := NewLiftService(ctx, ps)
 		subs := NewSubscriptionManager(ctx, ps)
 		id, ch, _ := subs.Subscribe()
-		lift, _ := svc.AddLift(LiftConfig{Floor: 4})
+		lift, _ := svc.AddLift(ctx, LiftConfig{Floor: 4})
 		defer func() {
 			cancel()
 		}()
@@ -308,27 +307,19 @@ func Test_SubscriptionManager(t *testing.T) {
 		ps := pubsub.NewMemoryPubSub()
 		svc := NewLiftService(ctx, ps)
 		subs := NewSubscriptionManager(ctx, ps)
-		lift, _ := svc.AddLift(LiftConfig{Floor: 0})
+		lift, _ := svc.AddLift(ctx, LiftConfig{Floor: 0})
 		id, ch, _ := subs.Subscribe()
 		defer func() {
 			subs.Unsubscribe(id)
 			cancel()
 		}()
-
-		// pull off the lift_added event
-		ev := <-ch
-		if ev.EventType != "lift_added" {
-			t.Errorf("expected lift_added, got %s", ev.EventType)
-		}
-
-		go func() {
-			for i := 0; i < 50; i++ {
-				err := svc.CallLift(context.TODO(), lift.Id, i+1)
-				if err != nil {
-					fmt.Println("err", err)
-				}
+		for i := 0; i < 50; i++ {
+			err := svc.CallLift(context.TODO(), lift.Id, i+1)
+			if err != nil {
+				t.Errorf("expected no error, got %e", err)
+				return
 			}
-		}()
+		}
 
 		var want []LiftEvent
 		for i := 0; i < 50; i++ {

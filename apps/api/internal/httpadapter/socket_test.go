@@ -47,7 +47,7 @@ func Test_Socket(t *testing.T) {
 		ws := ensureWsConnection(t, server)
 		defer ws.Close()
 
-		svc.AddLift(lift.LiftConfig{Floor: 5})
+		svc.AddLift(ctx, lift.LiftConfig{Floor: 5})
 
 		msg := readTextMessage(t, ws)
 		var event lift.LiftEvent

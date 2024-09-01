@@ -135,7 +135,7 @@ func Test_LiftController(t *testing.T) {
 
 	t.Run("GET /lift returns list of lifts", func(t *testing.T) {
 		// add another lift first
-		liftTwo, err := svc.AddLift(lift.LiftConfig{Floor: 5})
+		liftTwo, err := svc.AddLift(context.TODO(), lift.LiftConfig{Floor: 5})
 		if err != nil {
 			t.Errorf("expected no error, got %e", err)
 			return
@@ -171,7 +171,7 @@ func Test_LiftController(t *testing.T) {
 
 	t.Run("GET /lift returns a consistent order", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			_, err := svc.AddLift(lift.LiftConfig{Floor: 5})
+			_, err := svc.AddLift(context.TODO(), lift.LiftConfig{Floor: 5})
 			if err != nil {
 				t.Errorf("expected no error, got %e", err)
 				return
